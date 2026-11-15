@@ -40,7 +40,7 @@ Every release provides **both portable and installable editions**:
 |---|---|---|
 | Windows x64 | ZIP archive | Setup EXE (Inno Setup) |
 | Linux x64 | TAR.GZ archive | Debian package (.deb) |
-| macOS x64 | TAR.GZ archive | Installer package (.pkg) |
+| macOS x64 | TAR.GZ archive | Installer package (.pkg, Apple Silicon build) |
 
 **Portable:** extract the archive and run the executable. It can be kept in any folder and does not need installation.
 
