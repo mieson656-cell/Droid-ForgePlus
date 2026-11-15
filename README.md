@@ -1,58 +1,64 @@
 # DroidForge Plus
 
-A lightweight Rust desktop GUI for Android Debug Bridge (ADB) and Fastboot.
+DroidForge Plus is a desktop toolkit for Android Platform-Tools, built with Rust and egui.
 
 ## Features
 
 ### ADB
-- Install APK files
-- Capture screenshots
+- Install APK files and run recovery sideload
 - Push and pull files
-- ADB sideload
-- Export Logcat
-- Read device properties
+- Create a local backup of shared internal storage (/sdcard/)
+- Restore a backup with an explicit confirmation step
+- Capture PNG screenshots and export Logcat
+- Read Android build/device properties
 - Reboot to system, recovery, or bootloader
+- Show installed ADB and Fastboot versions
 
 ### Fastboot
-- Flash partition images
-- Temporarily boot an image
-- Unlock or relock the bootloader
+- Flash and temporarily boot image files
 - Erase partitions
-- Reboot device
-- Read Fastboot variables
-- Confirmation dialogs for flashing, erasing, and bootloader state changes
-- Unit tests for ADB/Fastboot device-state detection
+- Unlock or relock the bootloader
+- Reboot the device and query Fastboot variables
+- Explicit confirmation before flashing, erasing, or changing bootloader state
+
+### Reliability
+- ADB detection ignores unauthorized and offline devices
+- Fastboot detection requires a valid serial/state row
+- Unit tests cover device-state parsing
+- Cross-platform CI checks Windows and Linux
 
 ## Requirements
+- Windows, Linux, or macOS
+- Android SDK Platform-Tools (ADB and Fastboot) available in PATH
+- A USB connection with USB debugging enabled, or a supported Fastboot connection
 
-- Rust stable toolchain
-- Android SDK Platform-Tools (ADB and Fastboot)
-- Windows or Linux
+## Download and update
+Download the archive for your operating system from the [Releases](https://github.com/mieson656-cell/Droid-ForgePlus/releases) page. Extract it and run the application.
 
-Make sure adb and fastboot are available in your PATH.
+DroidForge Plus is distributed as a portable application: to update, close it, replace the old executable with the one from the newer release, and launch it again. No uninstall step is required. Keep exported backups in a separate folder; replacing the application does not touch them.
 
-## Build
+## Build from source
 
-\`\`\`bash
+```bash
 git clone https://github.com/mieson656-cell/Droid-ForgePlus.git
 cd Droid-ForgePlus
 cargo build --release
 cargo run --release
-\`\`\`
-
-## Development checks
-
-Run the local test suite with:
-
-```bash
-cargo test
 ```
 
-GitHub Actions runs `cargo check --all-targets` on Windows and Ubuntu for pushes and pull requests.
+Run checks locally:
 
-## Safety
+```bash
+cargo fmt --all -- --check
+cargo test --all-targets
+cargo check --all-targets
+cargo build --release
+```
 
-Flashing, erasing partitions, and changing bootloader state can permanently damage a device or erase user data. Verify the device model, partition layout, and image compatibility before proceeding. Bootloader unlock usually performs a factory reset. Never relock the bootloader while running an incompatible or modified system.
+## Safety notes
+Flashing and erasing partitions can make a device unbootable. Verify the device model, partition layout, and image compatibility before proceeding. Unlocking the bootloader commonly wipes user data. Relocking a bootloader while using an incompatible or modified system can brick the device.
+
+The shared-storage backup covers /sdcard/ only. It is not a complete device image and does not back up private app data, system partitions, or the bootloader. Restore can overwrite files with matching names.
 
 ## License
 
