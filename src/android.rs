@@ -142,3 +142,23 @@ pub fn get_fastboot_var(var: &str) -> Result<String, String> {
     if var.trim().is_empty() { return Err("Укажите имя переменной Fastboot.".into()); }
     run_command("fastboot", &["getvar", var])
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{has_fastboot_device, has_ready_adb_device};
+
+    #[test]
+    fn adb_accepts_only_authorized_device_rows() {
+        assert!(has_ready_adb_device("List of devices attached\nR58M123 device product:a56\n"));
+        assert!(!has_ready_adb_device("List of devices attached\nR58M123 unauthorized\n"));
+        assert!(!has_ready_adb_device("List of devices attached\nR58M123 offline\n"));
+        assert!(!has_ready_adb_device("List of devices attached\n"));
+    }
+
+    #[test]
+    fn fastboot_requires_a_serial_and_state_field() {
+        assert!(has_fastboot_device("ABC123 fastboot\n"));
+        assert!(!has_fastboot_device("\n"));
+        assert!(!has_fastboot_device("...\n"));
+    }
+}
