@@ -20,6 +20,8 @@ A lightweight Rust desktop GUI for Android Debug Bridge (ADB) and Fastboot.
 - Erase partitions
 - Reboot device
 - Read Fastboot variables
+- Confirmation dialogs for flashing, erasing, and bootloader state changes
+- Unit tests for ADB/Fastboot device-state detection
 
 ## Requirements
 
@@ -37,6 +39,16 @@ cd Droid-ForgePlus
 cargo build --release
 cargo run --release
 \`\`\`
+
+## Development checks
+
+Run the local test suite with:
+
+```bash
+cargo test
+```
+
+GitHub Actions runs `cargo check --all-targets` on Windows and Ubuntu for pushes and pull requests.
 
 ## Safety
 
