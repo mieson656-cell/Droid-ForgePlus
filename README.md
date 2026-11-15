@@ -1,56 +1,55 @@
 # DroidForge Plus
 
-DroidForge Plus is a desktop toolkit for Android Platform-Tools, built with Rust and egui.
+**DroidForge Plus** — настольная программа для управления Android-устройствами через ADB и Fastboot. Интерфейс, журнал операций и документация проекта ведутся на русском языке.
 
-## Features
+## Возможности
 
-### ADB
-- Install APK files and run recovery sideload
-- Push and pull files
-- Create a local backup of shared internal storage (/sdcard/)
-- Restore a backup with an explicit confirmation step
-- Capture PNG screenshots and export Logcat
-- Read Android build/device properties
-- Reboot to system, recovery, or bootloader
-- Show installed ADB and Fastboot versions
+### ADB — управление Android
+- Установка APK и ZIP-пакетов через Recovery
+- Передача файлов на устройство и получение файлов с устройства
+- Создание резервной копии общей внутренней памяти (/sdcard/)
+- Восстановление резервной копии с подтверждением
+- Создание снимков экрана в PNG и сохранение журнала Android
+- Просмотр сведений об устройстве и версий инструментов
+- Перезагрузка в систему, Recovery или режим загрузчика
 
-### Fastboot
-- Flash and temporarily boot image files
-- Erase partitions
-- Unlock or relock the bootloader
-- Reboot the device and query Fastboot variables
-- Explicit confirmation before flashing, erasing, or changing bootloader state
+### Fastboot — работа с загрузчиком
+- Прошивка разделов и временный запуск образов
+- Очистка разделов
+- Разблокировка и повторная блокировка загрузчика
+- Перезагрузка устройства и получение переменных Fastboot
+- Подтверждение перед прошивкой, очисткой разделов и изменением состояния загрузчика
 
-### Reliability
-- ADB detection ignores unauthorized and offline devices
-- Fastboot detection requires a valid serial/state row
-- Unit tests cover device-state parsing
-- Cross-platform CI checks Windows and Linux
+### Надёжность
+- Неавторизованные и отключённые устройства ADB не считаются подключёнными
+- Проверка корректной строки устройства Fastboot
+- Автоматические тесты разбора состояний устройств
+- Проверка сборки для Windows и Linux
 
-## Requirements
-- Windows, Linux, or macOS
-- Android SDK Platform-Tools (ADB and Fastboot) available in PATH
-- A USB connection with USB debugging enabled, or a supported Fastboot connection
+## Требования
+- Windows, Linux или macOS
+- Android SDK Platform-Tools (ADB и Fastboot), добавленные в PATH
+- USB-подключение с включённой отладкой по USB или поддерживаемое подключение Fastboot
 
-## Downloads: portable and installed editions
+## Скачать программу
 
-Every release provides **both portable and installable editions**:
+В каждом выпуске доступны **две редакции**:
 
-| Platform | Portable edition | Installer |
+| Платформа | Портативная версия | Установщик |
 |---|---|---|
-| Windows x64 | ZIP archive | Setup EXE (Inno Setup) |
-| Linux x64 | TAR.GZ archive | Debian package (.deb) |
-| macOS x64 | TAR.GZ archive | Installer package (.pkg, Apple Silicon build) |
+| Windows x64 | ZIP-архив | EXE-установщик |
+| Linux x64 | TAR.GZ-архив | DEB-пакет |
+| macOS ARM64 | TAR.GZ-архив | PKG-установщик |
 
-**Portable:** extract the archive and run the executable. It can be kept in any folder and does not need installation.
+**Портативная версия:** распакуйте архив и запустите программу. Установка не требуется, папку можно хранить в любом месте.
 
-**Installed:** run the platform installer. Windows creates a Start Menu shortcut and offers a desktop shortcut; Linux installs the app and command; macOS installs the app bundle into Applications.
+**Установленная версия:** запустите установщик своей платформы. В Windows появятся ярлыки в меню «Пуск» и, по выбору, на рабочем столе. В Linux программа добавится в систему и список приложений. В macOS приложение будет установлено в папку «Программы».
 
-### Updating
+### Обновление без удаления
 
-Download the same edition from the newer release. For portable installs, close the app and replace its files. For installed editions, run the newer installer/package over the existing installation. Do not uninstall the previous version first. Keep personal backups outside the application installation folder; updates do not intentionally remove them.
+Для портативной версии закройте программу и замените её файлы новыми. Для установленной версии запустите новый установщик поверх текущей установки. Удалять предыдущую версию заранее не нужно. Личные резервные копии храните вне папки установки программы.
 
-## Build from source
+## Сборка из исходного кода
 
 ```bash
 git clone https://github.com/mieson656-cell/Droid-ForgePlus.git
@@ -59,20 +58,20 @@ cargo build --release
 cargo run --release
 ```
 
-Run checks locally:
+Проверка проекта:
 
 ```bash
-cargo fmt --all -- --check
 cargo test --all-targets
 cargo check --all-targets
 cargo build --release
 ```
 
-## Safety notes
-Flashing and erasing partitions can make a device unbootable. Verify the device model, partition layout, and image compatibility before proceeding. Unlocking the bootloader commonly wipes user data. Relocking a bootloader while using an incompatible or modified system can brick the device.
+## Важные предупреждения
 
-The shared-storage backup covers /sdcard/ only. It is not a complete device image and does not back up private app data, system partitions, or the bootloader. Restore can overwrite files with matching names.
+Прошивка и очистка разделов могут привести к невозможности загрузки устройства. Перед операцией проверьте модель устройства, разметку разделов и совместимость образа. Разблокировка загрузчика обычно удаляет пользовательские данные. Повторная блокировка загрузчика с несовместимой или изменённой системой может вывести устройство из строя.
 
-## License
+Резервная копия включает только общую память `/sdcard/`. Она не сохраняет данные закрытых каталогов приложений, системные разделы или загрузчик. При восстановлении файлы с совпадающими именами могут быть перезаписаны.
 
-License terms are being verified against the upstream project before redistribution.
+## Лицензия
+
+Условия лицензирования проверяются перед дальнейшим распространением.
