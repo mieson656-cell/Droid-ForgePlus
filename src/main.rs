@@ -743,7 +743,7 @@ impl NativeWindowApp {
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
             },
-        )).map_err(|e| format!("Не найден совместимый графический адаптер: {e}"))?;
+        )).ok_or_else(|| "Не найден совместимый графический адаптер.".to_string())?;
 
         let (device, queue) = pollster::block_on(adapter.request_device(
             &wgpu::DeviceDescriptor {
@@ -870,9 +870,6 @@ impl NativeWindowApp {
 
         for id in &output.textures_delta.free {
             renderer.free_texture(id);
-        }
-        if self.egui_ctx.has_requested_repaint() {
-            window.request_redraw();
         }
     }
 }
