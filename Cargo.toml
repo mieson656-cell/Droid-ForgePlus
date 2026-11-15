@@ -1,11 +1,11 @@
 [package]
 name = "droidforge-plus"
-version = "0.4.2"
+version = "0.4.3"
 edition = "2021"
 description = "Настольная программа для управления Android через ADB и Fastboot"
 
 [dependencies]
-eframe = "0.29"
+eframe = { version = "0.29", features = ["wgpu"] }
 egui = "0.29"
 rfd = "0.15"
 
