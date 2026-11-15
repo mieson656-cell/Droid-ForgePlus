@@ -845,7 +845,7 @@ impl NativeWindowApp {
         }
         let user_cmd_buffers = renderer.update_buffers(device, queue, &mut encoder, &paint_jobs, &screen);
         {
-            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            let pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("DroidForge Plus opaque UI pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view,
