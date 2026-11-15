@@ -1,6 +1,6 @@
 [package]
 name = "droidforge-plus"
-version = "0.4.0"
+version = "0.4.2"
 edition = "2021"
 description = "Настольная программа для управления Android через ADB и Fastboot"
 
