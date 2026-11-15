@@ -65,8 +65,8 @@ jobs:
           [Languages]
           Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
           [Files]
-          Source: "target\release\droidforge-plus.exe"; DestDir: "{app}"; Flags: ignoreversion
-          Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
+          Source: "..\target\release\droidforge-plus.exe"; DestDir: "{app}"; Flags: ignoreversion
+          Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
           [Icons]
           Name: "{group}\DroidForge Plus"; Filename: "{app}\droidforge-plus.exe"
           Name: "{autodesktop}\DroidForge Plus"; Filename: "{app}\droidforge-plus.exe"; Tasks: desktopicon
