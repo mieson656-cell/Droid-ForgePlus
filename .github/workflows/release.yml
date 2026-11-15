@@ -51,6 +51,7 @@ jobs:
           curl -fL "https://dl.google.com/android/repository/$archive" -o platform-tools.zip
           unzip -q platform-tools.zip
           cp -R platform-tools/. dist/platform-tools/
+          if [ "${{ runner.os }}" = "Windows" ]; then cp platform-tools.zip dist/platform-tools.zip; fi
           test -f dist/platform-tools/adb || test -f dist/platform-tools/adb.exe
           test -f dist/platform-tools/fastboot || test -f dist/platform-tools/fastboot.exe
 
@@ -198,19 +199,20 @@ jobs:
       - name: Обновление тега до проверенного коммита
         if: steps.revision.outputs.is_latest == 'true'
         run: |
-          git tag -f "${GITHUB_REF_NAME}" "${GITHUB_SHA}"
-          git push --force origin "refs/tags/${GITHUB_REF_NAME}"
+          git tag -f "v0.4.0" "${GITHUB_SHA}"
+          git push --force origin "refs/tags/v0.4.0"
       - name: Публикация выпуска
         if: steps.revision.outputs.is_latest == 'true'
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          tag_name: ${{ github.ref_name }}
+          tag_name: v0.4.0
           target_commitish: ${{ github.sha }}
-          name: DroidForge Plus 0.4.3 — экспериментальный WGPU-рендерер
+          name: DroidForge Plus 0.4.0
           body_path: .github/RELEASE_NOTES_RU.md
           generate_release_notes: false
           fail_on_unmatched_files: true
+          overwrite_files: true
       - name: Удаление старых файлов выпуска
         env:
           GH_TOKEN: ${{ github.token }}
@@ -222,14 +224,13 @@ jobs:
             fi
           done
 
-      - name: Удаление неудачного выпуска 0.4.1
+      - name: Удаление лишних выпусков 0.4.2 и 0.4.3
         if: steps.revision.outputs.is_latest == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v0.4.1 >/dev/null 2>&1; then
-            gh release delete v0.4.1 --cleanup-tag --yes
-          fi
-          if git ls-remote --exit-code --heads origin v0.4.1 >/dev/null 2>&1; then
-            git push origin --delete v0.4.1
-          fi
+          for version in v0.4.2 v0.4.3; do
+            if gh release view "$version" >/dev/null 2>&1; then
+              gh release delete "$version" --cleanup-tag --yes
+            fi
+          done
