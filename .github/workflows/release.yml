@@ -189,3 +189,10 @@ jobs:
           body_path: .github/RELEASE_NOTES_RU.md
           generate_release_notes: false
           fail_on_unmatched_files: true
+      - name: Удаление старых файлов выпуска
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete-asset "${GITHUB_REF_NAME}" droidforge-plus-linux-x64.tar.gz --yes
+          gh release delete-asset "${GITHUB_REF_NAME}" droidforge-plus-macos.tar.gz --yes
+          gh release delete-asset "${GITHUB_REF_NAME}" droidforge-plus-windows-x64.zip --yes
