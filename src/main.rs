@@ -750,6 +750,7 @@ impl NativeWindowApp {
                 label: Some("DroidForge Plus native WGPU device"),
                 required_features: wgpu::Features::empty(),
                 required_limits: wgpu::Limits::downlevel_defaults(),
+                memory_hints: wgpu::MemoryHints::MemoryUsage,
             },
             None,
         )).map_err(|e| format!("Не удалось создать графическое устройство: {e}"))?;
