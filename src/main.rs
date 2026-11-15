@@ -14,6 +14,7 @@ enum PendingAction {
     Erase { partition: String },
     UnlockBootloader,
     LockBootloader,
+    RestoreBackup { directory: String },
 }
 
 struct DroidForgeApp {
@@ -235,6 +236,33 @@ impl DroidForgeApp {
 
             ui.add_space(8.0);
 
+
+            ui.add_space(8.0);
+            ui.group(|ui| {
+                ui.heading("Резервная копия");
+                ui.label("Экспортирует содержимое /sdcard/ в выбранную папку на компьютере.");
+                ui.horizontal(|ui| {
+                    ui.add_enabled_ui(self.adb_connected, |ui| {
+                        if ui.button("Создать копию").clicked() {
+                            if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                                let directory = path.display().to_string();
+                                self.add_log(&format!("[ADB] Резервное копирование /sdcard/ -> {directory}"));
+                                match android::backup_shared_storage(&directory) {
+                                    Ok(log) => self.add_log(&format!("[SUCCESS] {log}")),
+                                    Err(e) => self.add_log(&format!("[ERROR] {e}")),
+                                }
+                            }
+                        }
+                        if ui.button("Восстановить копию").clicked() {
+                            if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                                self.pending_action = Some(PendingAction::RestoreBackup { directory: path.display().to_string() });
+                            }
+                        }
+                    });
+                });
+                ui.label("Восстановление копирует файлы в /sdcard/ и может перезаписать совпадающие файлы.");
+            });
+
             // Ребут и режимы
             ui.group(|ui| {
                 ui.heading("🔄 Ребут и режимы");
@@ -314,6 +342,9 @@ impl DroidForgeApp {
                                 Ok(info) => self.add_log(&format!("[INFO]\n{}", info)),
                                 Err(e) => self.add_log(&format!("[ERROR] {}", e)),
                             }
+                        }
+                        if ui.button("Версии Platform-Tools").clicked() {
+                            self.add_log(&format!("[TOOLS]\n{}", android::get_platform_tools_versions()));
                         }
                     });
                 });
@@ -552,7 +583,7 @@ impl eframe::App for DroidForgeApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.add_space(10.0);
             ui.horizontal(|ui| {
-                ui.heading("DroidForge Plus");
+                ui.heading(format!("DroidForge Plus v{}", env!("CARGO_PKG_VERSION")));
                 ui.label(egui::RichText::new("ANDROID DEVICE TOOLKIT").small().color(egui::Color32::from_rgb(90, 190, 220)));
             });
             ui.label(
@@ -605,6 +636,10 @@ impl eframe::App for DroidForgeApp {
                             ui.colored_label(egui::Color32::RED, "Повторная блокировка с неподходящей прошивкой может сделать устройство незагружаемым.");
                             ui.label("Продолжайте только если полностью понимаете последствия.");
                         }
+                        PendingAction::RestoreBackup { directory } => {
+                            ui.colored_label(egui::Color32::YELLOW, "Файлы будут скопированы в /sdcard/. Совпадающие файлы могут быть перезаписаны.");
+                            ui.label(format!("Папка резервной копии: {directory}"));
+                        }
                     }
                     ui.add_space(8.0);
                     ui.horizontal(|ui| {
@@ -639,6 +674,13 @@ impl eframe::App for DroidForgeApp {
                     PendingAction::LockBootloader => {
                         self.add_log("[FASTBOOT] Блокировка загрузчика...");
                         match android::lock_bootloader() {
+                            Ok(log) => self.add_log(&format!("[SUCCESS] {log}")),
+                            Err(e) => self.add_log(&format!("[ERROR] {e}")),
+                        }
+                    }
+                    PendingAction::RestoreBackup { directory } => {
+                        self.add_log(&format!("[ADB] Восстановление из {directory}"));
+                        match android::restore_shared_storage(&directory) {
                             Ok(log) => self.add_log(&format!("[SUCCESS] {log}")),
                             Err(e) => self.add_log(&format!("[ERROR] {e}")),
                         }
