@@ -157,7 +157,7 @@ pub fn get_platform_tools_versions() -> String {
         .unwrap_or_else(|e| format!("ADB: {e}"));
     let fastboot = run_command("fastboot", &["--version"])
         .unwrap_or_else(|e| format!("Fastboot: {e}"));
-    format!("{adb}\n{fastboot}")
+    format!("Версия ADB:\n{adb}\n\nВерсия Fastboot:\n{fastboot}")
 }
 
 pub fn flash_partition(partition: &str, image_path: &str) -> Result<String, String> {
