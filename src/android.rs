@@ -129,6 +129,36 @@ pub fn get_device_info() -> Result<String, String> {
     Ok(info)
 }
 
+
+/// Copy shared internal storage to a local directory using ADB's recursive pull.
+pub fn backup_shared_storage(output_dir: &str) -> Result<String, String> {
+    if output_dir.trim().is_empty() {
+        return Err("Не выбрана папка для резервной копии.".into());
+    }
+    fs::create_dir_all(output_dir)
+        .map_err(|e| format!("Не удалось создать папку резервной копии: {e}"))?;
+    run_command("adb", &["pull", "/sdcard/", output_dir])
+}
+
+/// Restore a previously exported directory into shared internal storage.
+/// Existing files with matching names may be overwritten by ADB.
+pub fn restore_shared_storage(source_dir: &str) -> Result<String, String> {
+    let source = Path::new(source_dir);
+    if !source.is_dir() {
+        return Err("Папка резервной копии не найдена.".into());
+    }
+    run_command("adb", &["push", source_dir, "/sdcard/"])
+}
+
+/// Report installed Android Platform-Tools versions.
+pub fn get_platform_tools_versions() -> String {
+    let adb = run_command("adb", &["version"])
+        .unwrap_or_else(|e| format!("ADB: {e}"));
+    let fastboot = run_command("fastboot", &["--version"])
+        .unwrap_or_else(|e| format!("Fastboot: {e}"));
+    format!("{adb}\n{fastboot}")
+}
+
 pub fn flash_partition(partition: &str, image_path: &str) -> Result<String, String> {
     if partition.trim().is_empty() { return Err("Не выбран раздел для прошивки.".into()); }
     if !Path::new(image_path).is_file() { return Err("Файл образа не найден.".into()); }
