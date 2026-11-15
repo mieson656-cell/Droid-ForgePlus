@@ -2,6 +2,8 @@ name: Release builds
 
 on:
   push:
+    branches:
+      - "v*"
     tags:
       - "v*"
   workflow_dispatch:
@@ -59,7 +61,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/v')
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -71,4 +73,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
+          tag_name: ${{ github.ref_name }}
+          target_commitish: main
           generate_release_notes: true
