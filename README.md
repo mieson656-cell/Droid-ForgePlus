@@ -44,4 +44,4 @@ Flashing, erasing partitions, and changing bootloader state can permanently dama
 
 ## License
 
-MIT
+License terms are being verified against the upstream project before redistribution.
