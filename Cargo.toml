@@ -1,0 +1,17 @@
+[package]
+name = "droidforge-plus"
+version = "0.2.0"
+edition = "2021"
+description = "A modern desktop toolkit for Android ADB and Fastboot"
+license = "MIT"
+
+[dependencies]
+eframe = "0.29"
+egui = "0.29"
+rfd = "0.15"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
