@@ -84,6 +84,7 @@ jobs:
           [Files]
           Source: "..\target\release\droidforge-plus.exe"; DestDir: "{app}"; Flags: ignoreversion
           Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
+          Source: "..\\dist\\platform-tools\\*"; DestDir: "{app}\\platform-tools"; Flags: ignoreversion recursesubdirs createallsubdirs
           [Icons]
           Name: "{group}\DroidForge Plus"; Filename: "{app}\droidforge-plus.exe"
           Name: "{autodesktop}\DroidForge Plus"; Filename: "{app}\droidforge-plus.exe"; Tasks: desktopicon
