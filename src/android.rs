@@ -147,7 +147,8 @@ pub fn restore_shared_storage(source_dir: &str) -> Result<String, String> {
     if !source.is_dir() {
         return Err("Папка резервной копии не найдена.".into());
     }
-    run_command("adb", &["push", source_dir, "/sdcard/"])
+    let source_with_contents = format!("{}/.", source_dir.trim_end_matches(['/', '\\']));
+    run_command("adb", &["push", &source_with_contents, "/sdcard/"])
 }
 
 /// Report installed Android Platform-Tools versions.
