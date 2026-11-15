@@ -706,9 +706,9 @@ impl eframe::App for DroidForgeApp {
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
-        renderer: eframe::Renderer::Glow,
-        // Request a single-sample framebuffer explicitly. This avoids driver-specific
-        // pixel-format selection problems seen with older NVIDIA OpenGL drivers.
+        renderer: eframe::Renderer::Wgpu,
+        // Use WGPU instead of Glow/OpenGL to test an alternative graphics backend
+        // on systems affected by legacy NVIDIA OpenGL driver/compositor issues.
         multisampling: 1,
         depth_buffer: 0,
         stencil_buffer: 0,
