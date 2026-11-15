@@ -199,3 +199,15 @@ jobs:
               gh release delete-asset "${GITHUB_REF_NAME}" "$old_asset" --yes
             fi
           done
+
+      - name: Удаление неудачного выпуска 0.4.1
+        if: steps.revision.outputs.is_latest == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v0.4.1 >/dev/null 2>&1; then
+            gh release delete v0.4.1 --cleanup-tag --yes
+          fi
+          if git ls-remote --exit-code --heads origin v0.4.1 >/dev/null 2>&1; then
+            git push origin --delete v0.4.1
+          fi
