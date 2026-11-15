@@ -33,7 +33,7 @@ impl Default for DroidForgeApp {
             current_tab: Tab::Adb,
             adb_connected: false,
             fastboot_connected: false,
-            log_text: String::from("[INFO] Добро пожаловать в DroidForge!\n[INFO] Нажмите 'Обновить статус' для проверки подключения\n"),
+            log_text: String::from("[INFO] Добро пожаловать в DroidForge Plus!\n[INFO] Нажмите 'Обновить статус' для проверки подключения\n"),
 
             selected_apk: None,
             selected_sideload: None,
@@ -554,12 +554,12 @@ fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1100.0, 800.0])
-            .with_title("DroidForge"),
+            .with_title("DroidForge Plus"),
         ..Default::default()
     };
 
     eframe::run_native(
-        "DroidForge",
+        "DroidForge Plus",
         options,
         Box::new(|_cc| Ok(Box::new(DroidForgeApp::default()))),
     )
