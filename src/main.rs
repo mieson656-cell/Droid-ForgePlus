@@ -745,11 +745,14 @@ impl NativeWindowApp {
             },
         )).ok_or_else(|| "Не найден совместимый графический адаптер.".to_string())?;
 
+        // Older adapters may not support every downlevel default limit.
+        // Request only limits reported by the selected adapter.
+        let adapter_limits = adapter.limits();
         let (device, queue) = pollster::block_on(adapter.request_device(
             &wgpu::DeviceDescriptor {
                 label: Some("DroidForge Plus native WGPU device"),
                 required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::downlevel_defaults(),
+                required_limits: adapter_limits,
                 memory_hints: wgpu::MemoryHints::MemoryUsage,
             },
             None,
