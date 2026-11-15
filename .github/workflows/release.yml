@@ -52,7 +52,7 @@ jobs:
           [Setup]
           AppId={{BDB0EFC4-60AF-4D0A-9A6A-3C77F19B7A31}
           AppName=DroidForge Plus
-          AppVersion=0.3.1
+          AppVersion=0.4.0
           AppPublisher=DroidForge Plus
           DefaultDirName={autopf}\DroidForge Plus
           DefaultGroupName=DroidForge Plus
@@ -96,7 +96,7 @@ jobs:
           install -m 0644 README.md deb/opt/droidforge-plus/README.md
           cat > deb/DEBIAN/control <<'EOF'
           Package: droidforge-plus
-          Version: 0.3.1
+          Version: 0.4.0
           Section: utils
           Priority: optional
           Architecture: amd64
@@ -132,14 +132,14 @@ jobs:
           <key>CFBundleName</key><string>DroidForge Plus</string>
           <key>CFBundleDisplayName</key><string>DroidForge Plus</string>
           <key>CFBundleIdentifier</key><string>com.droidforge.plus</string>
-          <key>CFBundleVersion</key><string>0.3.1</string>
-          <key>CFBundleShortVersionString</key><string>0.3.1</string>
+          <key>CFBundleVersion</key><string>0.4.0</string>
+          <key>CFBundleShortVersionString</key><string>0.4.0</string>
           <key>CFBundlePackageType</key><string>APPL</string>
           <key>CFBundleExecutable</key><string>droidforge-plus</string>
           </dict></plist>
           EOF
           cp -R "DroidForge Plus.app" pkgroot/Applications/
-          pkgbuild --root pkgroot --identifier com.droidforge.plus.pkg --version 0.3.1 --install-location / "dist/droidforge-plus-macos-aarch64.pkg"
+          pkgbuild --root pkgroot --identifier com.droidforge.plus.pkg --version 0.4.0 --install-location / "dist/droidforge-plus-macos-aarch64.pkg"
 
       - name: Загрузка собранных файлов
         uses: actions/upload-artifact@v4
@@ -185,7 +185,7 @@ jobs:
           files: dist/*
           tag_name: ${{ github.ref_name }}
           target_commitish: ${{ github.sha }}
-          name: DroidForge Plus 0.3.1 — исправление отображения и русская версия
+          name: DroidForge Plus 0.4.0 — совместимость со старыми видеокартами
           body_path: .github/RELEASE_NOTES_RU.md
           generate_release_notes: false
           fail_on_unmatched_files: true
