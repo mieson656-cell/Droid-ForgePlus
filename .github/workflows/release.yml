@@ -2,10 +2,8 @@ name: Release builds
 
 on:
   push:
-    branches:
-      - "v*"
-    tags:
-      - "v*"
+    branches: ["v*"]
+    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
@@ -13,7 +11,7 @@ permissions:
 
 jobs:
   build:
-    name: Build (${{ matrix.os }})
+    name: Build portable + installer (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -21,13 +19,13 @@ jobs:
         include:
           - os: ubuntu-latest
             binary: droidforge-plus
-            archive: droidforge-plus-linux-x64.tar.gz
+            portable: droidforge-plus-linux-x64-portable.tar.gz
           - os: windows-latest
             binary: droidforge-plus.exe
-            archive: droidforge-plus-windows-x64.zip
+            portable: droidforge-plus-windows-x64-portable.zip
           - os: macos-latest
             binary: droidforge-plus
-            archive: droidforge-plus-macos.tar.gz
+            portable: droidforge-plus-macos-x64-portable.tar.gz
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -39,25 +37,113 @@ jobs:
           sudo apt-get install -y pkg-config libxkbcommon-dev libwayland-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libasound2-dev libxcb-randr0-dev libxcb-shape0-dev libxcb-xfixes0-dev
       - name: Build release binary
         run: cargo build --release
-      - name: Prepare Unix archive
-        if: runner.os != 'Windows'
-        run: |
-          mkdir -p dist
-          cp README.md dist/README.md
-          cp "target/release/${{ matrix.binary }}" dist/
-          tar -czf "dist/${{ matrix.archive }}" -C dist README.md "${{ matrix.binary }}"
-      - name: Prepare Windows archive
+
+      - name: Package Windows portable and installer
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force dist | Out-Null
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force dist, installer | Out-Null
           Copy-Item README.md dist/README.md
           Copy-Item "target/release/${{ matrix.binary }}" dist/
-          Compress-Archive -Path dist/README.md,dist/${{ matrix.binary }} -DestinationPath "dist/${{ matrix.archive }}"
+          Compress-Archive -Path dist/README.md,dist/${{ matrix.binary }} -DestinationPath "dist/${{ matrix.portable }}"
+          choco install innosetup --no-progress -y
+          @'
+          [Setup]
+          AppId={{BDB0EFC4-60AF-4D0A-9A6A-3C77F19B7A31}
+          AppName=DroidForge Plus
+          AppVersion=0.3.1
+          AppPublisher=DroidForge Plus
+          DefaultDirName={autopf}\DroidForge Plus
+          DefaultGroupName=DroidForge Plus
+          OutputDir=dist
+          OutputBaseFilename=droidforge-plus-windows-x64-setup
+          Compression=lzma2
+          SolidCompression=yes
+          ArchitecturesInstallIn64BitMode=x64
+          UninstallDisplayIcon={app}\droidforge-plus.exe
+          [Files]
+          Source: "target\release\droidforge-plus.exe"; DestDir: "{app}"; Flags: ignoreversion
+          Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
+          [Icons]
+          Name: "{group}\DroidForge Plus"; Filename: "{app}\droidforge-plus.exe"
+          Name: "{autodesktop}\DroidForge Plus"; Filename: "{app}\droidforge-plus.exe"; Tasks: desktopicon
+          [Tasks]
+          Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"
+          [Run]
+          Filename: "{app}\droidforge-plus.exe"; Description: "Launch DroidForge Plus"; Flags: postinstall nowait skipifsilent
+          '@ | Set-Content -Encoding ASCII installer\droidforge-plus.iss
+          & "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe" installer\droidforge-plus.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed: $LASTEXITCODE" }
+
+      - name: Package Linux portable and Debian installer
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/portable deb/DEBIAN deb/opt/droidforge-plus deb/usr/bin deb/usr/share/applications
+          cp README.md dist/portable/README.md
+          cp target/release/${{ matrix.binary }} dist/portable/
+          tar -czf "dist/${{ matrix.portable }}" -C dist/portable README.md ${{ matrix.binary }}
+          install -m 0755 target/release/${{ matrix.binary }} deb/opt/droidforge-plus/droidforge-plus
+          ln -s /opt/droidforge-plus/droidforge-plus deb/usr/bin/droidforge-plus
+          install -m 0644 README.md deb/opt/droidforge-plus/README.md
+          cat > deb/DEBIAN/control <<'EOF'
+          Package: droidforge-plus
+          Version: 0.3.1
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Maintainer: DroidForge Plus
+          Description: Desktop toolkit for Android ADB and Fastboot
+           Manage Android devices with ADB and Fastboot from a desktop GUI.
+          EOF
+          cat > deb/usr/share/applications/droidforge-plus.desktop <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=DroidForge Plus
+          Comment=Android ADB and Fastboot toolkit
+          Exec=droidforge-plus
+          Icon=application-x-executable
+          Terminal=false
+          Categories=Utility;Development;
+          EOF
+          dpkg-deb --root-owner-group --build deb "dist/droidforge-plus-linux-x64.deb"
+
+      - name: Package macOS portable and installer
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/portable "DroidForge Plus.app/Contents/MacOS" pkgroot/Applications
+          cp README.md dist/portable/README.md
+          cp target/release/${{ matrix.binary }} dist/portable/
+          tar -czf "dist/${{ matrix.portable }}" -C dist/portable README.md ${{ matrix.binary }}
+          install -m 0755 target/release/${{ matrix.binary }} "DroidForge Plus.app/Contents/MacOS/droidforge-plus"
+          cat > "DroidForge Plus.app/Contents/Info.plist" <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+          <key>CFBundleName</key><string>DroidForge Plus</string>
+          <key>CFBundleDisplayName</key><string>DroidForge Plus</string>
+          <key>CFBundleIdentifier</key><string>com.droidforge.plus</string>
+          <key>CFBundleVersion</key><string>0.3.1</string>
+          <key>CFBundleShortVersionString</key><string>0.3.1</string>
+          <key>CFBundlePackageType</key><string>APPL</string>
+          <key>CFBundleExecutable</key><string>droidforge-plus</string>
+          </dict></plist>
+          EOF
+          cp -R "DroidForge Plus.app" pkgroot/Applications/
+          pkgbuild --root pkgroot --identifier com.droidforge.plus.pkg --version 0.3.1 --install-location / "dist/droidforge-plus-macos-x64.pkg"
+
       - uses: actions/upload-artifact@v4
         with:
           name: droidforge-plus-${{ matrix.os }}
-          path: dist/${{ matrix.archive }}
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
+            dist/*.deb
+            dist/*.pkg
           if-no-files-found: error
 
   publish:
