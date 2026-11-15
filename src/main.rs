@@ -524,7 +524,15 @@ impl eframe::App for DroidForgeApp {
 
         // Нижняя панель с логом
         egui::TopBottomPanel::bottom("log_panel").min_height(200.0).show(ctx, |ui| {
-            ui.heading("📋 Лог");
+            ui.horizontal(|ui| {
+                ui.heading("Журнал операций");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button("Очистить").clicked() {
+                        self.log_text.clear();
+                        self.add_log("[INFO] Журнал очищен.");
+                    }
+                });
+            });
             ui.add_space(4.0);
 
             egui::ScrollArea::vertical()
@@ -542,7 +550,16 @@ impl eframe::App for DroidForgeApp {
 
         // Центральная панель с вкладками
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.add_space(8.0);
+            ui.add_space(10.0);
+            ui.horizontal(|ui| {
+                ui.heading("DroidForge Plus");
+                ui.label(egui::RichText::new("ANDROID DEVICE TOOLKIT").small().color(egui::Color32::from_rgb(90, 190, 220)));
+            });
+            ui.label(
+                egui::RichText::new("ADB, Fastboot и диагностика устройства в одном окне")
+                    .color(egui::Color32::from_gray(160)),
+            );
+            ui.add_space(10.0);
 
             // Вкладки
             ui.horizontal(|ui| {
