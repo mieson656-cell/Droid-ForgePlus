@@ -10,13 +10,13 @@ egui = "0.29"
 rfd = "0.15"
 
 [target.'cfg(windows)'.dependencies]
-wgpu = { version = "22.1", default-features = false, features = ["dx12", "vulkan", "gles"] }
+wgpu = { version = "22.1", default-features = false, features = ["dx12"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-wgpu = { version = "22.1", default-features = false, features = ["vulkan", "gles"] }
+wgpu = { version = "22.1", default-features = false, features = ["vulkan-portability"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-wgpu = { version = "22.1", default-features = false, features = ["metal", "gles"] }
+wgpu = { version = "22.1", default-features = false, features = ["metal"] }
 
 [profile.release]
 opt-level = "z"
