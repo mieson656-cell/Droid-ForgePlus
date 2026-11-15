@@ -90,8 +90,8 @@ impl DroidForgeApp {
         } else {
             self.add_log("[ЗАГРУЗЧИК] Устройство в режиме Fastboot не найдено.");
         }
-        if !fb_log.trim().is_empty() {
-            self.add_log(&format!("  {}", fb_log.trim().replace('\n', "\n  ")));
+        if !fb && fb_log.starts_with("Не удалось запустить") {
+            self.add_log(&format!("[ЗАГРУЗЧИК] {fb_log}"));
         }
     }
 
@@ -288,7 +288,7 @@ impl DroidForgeApp {
                         }
 
                         if ui.button("В режим загрузчика").clicked() {
-                            self.add_log("[ADB] Перезагрузка в Fastboot...");
+                            self.add_log("[ADB] Перезагрузка в режим загрузчика...");
                             match android::adb_reboot("bootloader") {
                                 Ok(log) => self.add_log(&format!("[УСПЕХ] {}", log)),
                                 Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
@@ -503,7 +503,7 @@ impl DroidForgeApp {
 
             ui.add_space(8.0);
 
-            // Fastboot getvar
+            // Запрос сведений Fastboot
             ui.group(|ui| {
                 ui.heading("ℹ Информация");
                 ui.add_space(8.0);
