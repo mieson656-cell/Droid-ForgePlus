@@ -2,7 +2,6 @@ name: Сборка выпусков
 on:
   push:
     branches: ["v*"]
-    tags: ["v*"]
   workflow_dispatch:
 permissions:
   contents: write
@@ -155,15 +154,32 @@ jobs:
           if-no-files-found: error
 
   publish:
-    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/v')
+    if: startsWith(github.ref, 'refs/heads/v')
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - name: Проверка актуальности исходного кода
+        id: revision
+        shell: bash
+        run: |
+          remote_sha="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | cut -f1)"
+          if [[ "$remote_sha" == "$GITHUB_SHA" ]]; then
+            echo "is_latest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_latest=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
+      - name: Обновление тега до проверенного коммита
+        if: steps.revision.outputs.is_latest == 'true'
+        run: |
+          git tag -f "${GITHUB_REF_NAME}" "${GITHUB_SHA}"
+          git push --force origin "refs/tags/${GITHUB_REF_NAME}"
       - name: Публикация выпуска
+        if: steps.revision.outputs.is_latest == 'true'
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
