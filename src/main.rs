@@ -8,6 +8,14 @@ enum Tab {
     Fastboot,
 }
 
+#[derive(Clone)]
+enum PendingAction {
+    Flash { partition: String, image: String },
+    Erase { partition: String },
+    UnlockBootloader,
+    LockBootloader,
+}
+
 struct DroidForgeApp {
     current_tab: Tab,
     adb_connected: bool,
@@ -25,6 +33,7 @@ struct DroidForgeApp {
     selected_image: Option<String>,
     partitions: Vec<String>,
     fastboot_var: String,
+    pending_action: Option<PendingAction>,
 }
 
 impl Default for DroidForgeApp {
@@ -50,6 +59,7 @@ impl Default for DroidForgeApp {
                 "radio".to_string(),
             ],
             fastboot_var: "product".to_string(),
+            pending_action: None,
         }
     }
 }
@@ -359,10 +369,10 @@ impl DroidForgeApp {
                             if let Some(img_path) = self.selected_image.clone() {
                                 let partition = self.selected_partition.clone();
                                 self.add_log(&format!("[FASTBOOT] Прошивка {} <- {}", partition, img_path));
-                                match android::flash_partition(&partition, &img_path) {
-                                    Ok(log) => self.add_log(&format!("[SUCCESS] {}", log)),
-                                    Err(e) => self.add_log(&format!("[ERROR] {}", e)),
-                                }
+                                self.pending_action = Some(PendingAction::Flash {
+                                    partition,
+                                    image: img_path,
+                                });
                             }
                         }
 
@@ -389,20 +399,11 @@ impl DroidForgeApp {
                 ui.horizontal(|ui| {
                     ui.add_enabled_ui(self.fastboot_connected, |ui| {
                         if ui.button("🔓 Разблокировать").clicked() {
-                            self.add_log("⚠ ВНИМАНИЕ: Разблокировка СОТРЕТ ВСЕ ДАННЫЕ!");
-                            self.add_log("[FASTBOOT] Разблокировка загрузчика...");
-                            match android::unlock_bootloader() {
-                                Ok(log) => self.add_log(&format!("[SUCCESS] {}", log)),
-                                Err(e) => self.add_log(&format!("[ERROR] {}", e)),
-                            }
+                            self.pending_action = Some(PendingAction::UnlockBootloader);
                         }
 
                         if ui.button("🔒 Заблокировать").clicked() {
-                            self.add_log("[FASTBOOT] Блокировка загрузчика...");
-                            match android::lock_bootloader() {
-                                Ok(log) => self.add_log(&format!("[SUCCESS] {}", log)),
-                                Err(e) => self.add_log(&format!("[ERROR] {}", e)),
-                            }
+                            self.pending_action = Some(PendingAction::LockBootloader);
                         }
                     });
                 });
@@ -425,11 +426,9 @@ impl DroidForgeApp {
 
                     ui.add_enabled_ui(self.fastboot_connected, |ui| {
                         if ui.button("🗑 Стереть").clicked() {
-                            self.add_log(&format!("⚠ Стирание раздела {}...", self.selected_partition));
-                            match android::erase_partition(&self.selected_partition) {
-                                Ok(log) => self.add_log(&format!("[SUCCESS] {}", log)),
-                                Err(e) => self.add_log(&format!("[ERROR] {}", e)),
-                            }
+                            self.pending_action = Some(PendingAction::Erase {
+                                partition: self.selected_partition.clone(),
+                            });
                         }
                     });
                 });
@@ -502,7 +501,19 @@ impl DroidForgeApp {
 
 impl eframe::App for DroidForgeApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        ctx.set_visuals(egui::Visuals::dark());
+        // Consistent dark theme and more comfortable spacing.
+        let mut visuals = egui::Visuals::dark();
+        visuals.panel_fill = egui::Color32::from_rgb(15, 18, 25);
+        visuals.window_fill = egui::Color32::from_rgb(22, 27, 38);
+        visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(35, 43, 58);
+        visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(48, 62, 82);
+        visuals.widgets.active.bg_fill = egui::Color32::from_rgb(20, 115, 145);
+        ctx.set_visuals(visuals);
+        ctx.style_mut(|style| {
+            style.spacing.item_spacing = egui::vec2(10.0, 8.0);
+            style.spacing.button_padding = egui::vec2(12.0, 7.0);
+            style.visuals.window_rounding = egui::Rounding::same(10.0);
+        });
 
         // Верхняя панель со статусом
         egui::TopBottomPanel::top("status_bar").show(ctx, |ui| {
@@ -547,6 +558,80 @@ impl eframe::App for DroidForgeApp {
                 Tab::Fastboot => self.render_fastboot_tab(ui),
             }
         });
+
+        // Destructive Fastboot operations always require explicit confirmation.
+        if let Some(action) = self.pending_action.clone() {
+            let mut open = true;
+            let mut confirm = false;
+            let mut cancel = false;
+            egui::Window::new("Подтверждение опасной операции")
+                .collapsible(false)
+                .resizable(false)
+                .open(&mut open)
+                .show(ctx, |ui| {
+                    match &action {
+                        PendingAction::Flash { partition, image } => {
+                            ui.colored_label(egui::Color32::YELLOW, "ВНИМАНИЕ: запись образа изменит раздел устройства.");
+                            ui.label(format!("Раздел: {partition}"));
+                            ui.label(format!("Образ: {image}"));
+                            ui.label("Неподходящий образ может привести к невозможности загрузки.");
+                        }
+                        PendingAction::Erase { partition } => {
+                            ui.colored_label(egui::Color32::RED, "ВНИМАНИЕ: содержимое раздела будет удалено.");
+                            ui.label(format!("Раздел: {partition}"));
+                        }
+                        PendingAction::UnlockBootloader => {
+                            ui.colored_label(egui::Color32::RED, "Разблокировка загрузчика обычно стирает все пользовательские данные.");
+                            ui.label("Убедитесь, что резервная копия важных файлов создана.");
+                        }
+                        PendingAction::LockBootloader => {
+                            ui.colored_label(egui::Color32::RED, "Повторная блокировка с неподходящей прошивкой может сделать устройство незагружаемым.");
+                            ui.label("Продолжайте только если полностью понимаете последствия.");
+                        }
+                    }
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        if ui.button("Отмена").clicked() { cancel = true; }
+                        if ui.button("Подтвердить операцию").clicked() { confirm = true; }
+                    });
+                });
+            if confirm {
+                self.pending_action = None;
+                match action {
+                    PendingAction::Flash { partition, image } => {
+                        self.add_log(&format!("[FASTBOOT] Прошивка {partition} <- {image}"));
+                        match android::flash_partition(&partition, &image) {
+                            Ok(log) => self.add_log(&format!("[SUCCESS] {log}")),
+                            Err(e) => self.add_log(&format!("[ERROR] {e}")),
+                        }
+                    }
+                    PendingAction::Erase { partition } => {
+                        self.add_log(&format!("[FASTBOOT] Стирание раздела {partition}"));
+                        match android::erase_partition(&partition) {
+                            Ok(log) => self.add_log(&format!("[SUCCESS] {log}")),
+                            Err(e) => self.add_log(&format!("[ERROR] {e}")),
+                        }
+                    }
+                    PendingAction::UnlockBootloader => {
+                        self.add_log("[FASTBOOT] Разблокировка загрузчика...");
+                        match android::unlock_bootloader() {
+                            Ok(log) => self.add_log(&format!("[SUCCESS] {log}")),
+                            Err(e) => self.add_log(&format!("[ERROR] {e}")),
+                        }
+                    }
+                    PendingAction::LockBootloader => {
+                        self.add_log("[FASTBOOT] Блокировка загрузчика...");
+                        match android::lock_bootloader() {
+                            Ok(log) => self.add_log(&format!("[SUCCESS] {log}")),
+                            Err(e) => self.add_log(&format!("[ERROR] {e}")),
+                        }
+                    }
+                }
+            } else if cancel || !open {
+                self.pending_action = None;
+                self.add_log("[INFO] Опасная операция отменена.");
+            }
+        }
     }
 }
 
