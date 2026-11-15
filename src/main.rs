@@ -74,20 +74,21 @@ impl DroidForgeApp {
     fn check_connection_status(&mut self) {
         self.add_log("[ИНФО] Проверка подключения...");
 
-        let (adb, _adb_log) = android::check_adb();
+        let (adb, adb_log) = android::check_adb();
         self.adb_connected = adb;
         if adb {
             self.add_log("[ADB] ✓ Устройство подключено в режиме ADB");
         } else {
-            self.add_log("[ADB] ✗ Устройство не найдено");
+            self.add_log("[ADB] Устройство не найдено или не подтверждена отладка по USB.");
+            if adb_log.starts_with("Не удалось запустить") { self.add_log(&format!("[ADB] {adb_log}")); }
         }
 
         let (fb, fb_log) = android::check_fastboot();
         self.fastboot_connected = fb;
         if fb {
-            self.add_log("[FASTBOOT] ✓ Устройство подключено в режиме Fastboot");
+            self.add_log("[ЗАГРУЗЧИК] Устройство подключено в режиме Fastboot.");
         } else {
-            self.add_log("[FASTBOOT] ✗ Устройство не найдено");
+            self.add_log("[ЗАГРУЗЧИК] Устройство в режиме Fastboot не найдено.");
         }
         if !fb_log.trim().is_empty() {
             self.add_log(&format!("  {}", fb_log.trim().replace('\n', "\n  ")));
@@ -399,7 +400,6 @@ impl DroidForgeApp {
                         if ui.button("⚡ Прошить").clicked() {
                             if let Some(img_path) = self.selected_image.clone() {
                                 let partition = self.selected_partition.clone();
-                                self.add_log(&format!("[FASTBOOT] Прошивка {} <- {}", partition, img_path));
                                 self.pending_action = Some(PendingAction::Flash {
                                     partition,
                                     image: img_path,
@@ -409,7 +409,7 @@ impl DroidForgeApp {
 
                         if ui.button("🚀 Загрузиться с образа").clicked() {
                             if let Some(img_path) = self.selected_image.clone() {
-                                self.add_log(&format!("[FASTBOOT] Запуск образа без прошивки: {}", img_path));
+                                self.add_log(&format!("[ЗАГРУЗЧИК] Запуск образа без прошивки: {}", img_path));
                                 match android::boot_image(&img_path) {
                                     Ok(log) => self.add_log(&format!("[УСПЕХ] {}", log)),
                                     Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
@@ -475,7 +475,7 @@ impl DroidForgeApp {
                 ui.horizontal(|ui| {
                     ui.add_enabled_ui(self.fastboot_connected, |ui| {
                         if ui.button("Перезагрузить").clicked() {
-                            self.add_log("[FASTBOOT] Перезагрузка...");
+                            self.add_log("[ЗАГРУЗЧИК] Перезагрузка...");
                             match android::fastboot_reboot("") {
                                 Ok(log) => self.add_log(&format!("[УСПЕХ] {}", log)),
                                 Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
@@ -483,7 +483,7 @@ impl DroidForgeApp {
                         }
 
                         if ui.button("В Recovery").clicked() {
-                            self.add_log("[FASTBOOT] Перезагрузка в Recovery...");
+                            self.add_log("[ЗАГРУЗЧИК] Перезагрузка в Recovery...");
                             match android::fastboot_reboot("recovery") {
                                 Ok(log) => self.add_log(&format!("[УСПЕХ] {}", log)),
                                 Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
@@ -491,7 +491,7 @@ impl DroidForgeApp {
                         }
 
                         if ui.button("В загрузчик").clicked() {
-                            self.add_log("[FASTBOOT] Перезагрузка в Bootloader...");
+                            self.add_log("[ЗАГРУЗЧИК] Перезагрузка в режим загрузчика...");
                             match android::fastboot_reboot("bootloader") {
                                 Ok(log) => self.add_log(&format!("[УСПЕХ] {}", log)),
                                 Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
@@ -514,7 +514,7 @@ impl DroidForgeApp {
 
                     ui.add_enabled_ui(self.fastboot_connected, |ui| {
                         if ui.button("📋 Получить переменную").clicked() {
-                            self.add_log(&format!("[FASTBOOT] getvar {}...", self.fastboot_var));
+                            self.add_log(&format!("[ЗАГРУЗЧИК] Запрос переменной {}...", self.fastboot_var));
                             match android::get_fastboot_var(&self.fastboot_var) {
                                 Ok(log) => self.add_log(&format!("[ИНФО] {}", log)),
                                 Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
@@ -532,7 +532,9 @@ impl DroidForgeApp {
 
 impl eframe::App for DroidForgeApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Consistent dark theme and more comfortable spacing.
+        ctx.request_repaint_after(std::time::Duration::from_millis(100));
+
+        // Единая тёмная тема и удобные интервалы.
         let mut visuals = egui::Visuals::dark();
         visuals.panel_fill = egui::Color32::from_rgb(15, 18, 25);
         visuals.window_fill = egui::Color32::from_rgb(22, 27, 38);
@@ -595,7 +597,7 @@ impl eframe::App for DroidForgeApp {
             // Вкладки
             ui.horizontal(|ui| {
                 ui.selectable_value(&mut self.current_tab, Tab::Adb, "📱 ADB");
-                ui.selectable_value(&mut self.current_tab, Tab::Fastboot, "⚡ Fastboot");
+                ui.selectable_value(&mut self.current_tab, Tab::Fastboot, "⚡ Загрузчик (Fastboot)");
             });
 
             ui.separator();
@@ -651,28 +653,28 @@ impl eframe::App for DroidForgeApp {
                 self.pending_action = None;
                 match action {
                     PendingAction::Flash { partition, image } => {
-                        self.add_log(&format!("[FASTBOOT] Прошивка {partition} <- {image}"));
+                        self.add_log(&format!("[ЗАГРУЗЧИК] Прошивка {partition} <- {image}"));
                         match android::flash_partition(&partition, &image) {
                             Ok(log) => self.add_log(&format!("[УСПЕХ] {log}")),
                             Err(e) => self.add_log(&format!("[ОШИБКА] {e}")),
                         }
                     }
                     PendingAction::Erase { partition } => {
-                        self.add_log(&format!("[FASTBOOT] Стирание раздела {partition}"));
+                        self.add_log(&format!("[ЗАГРУЗЧИК] Стирание раздела {partition}"));
                         match android::erase_partition(&partition) {
                             Ok(log) => self.add_log(&format!("[УСПЕХ] {log}")),
                             Err(e) => self.add_log(&format!("[ОШИБКА] {e}")),
                         }
                     }
                     PendingAction::UnlockBootloader => {
-                        self.add_log("[FASTBOOT] Разблокировка загрузчика...");
+                        self.add_log("[ЗАГРУЗЧИК] Разблокировка загрузчика...");
                         match android::unlock_bootloader() {
                             Ok(log) => self.add_log(&format!("[УСПЕХ] {log}")),
                             Err(e) => self.add_log(&format!("[ОШИБКА] {e}")),
                         }
                     }
                     PendingAction::LockBootloader => {
-                        self.add_log("[FASTBOOT] Блокировка загрузчика...");
+                        self.add_log("[ЗАГРУЗЧИК] Блокировка загрузчика...");
                         match android::lock_bootloader() {
                             Ok(log) => self.add_log(&format!("[УСПЕХ] {log}")),
                             Err(e) => self.add_log(&format!("[ОШИБКА] {e}")),
@@ -696,8 +698,10 @@ impl eframe::App for DroidForgeApp {
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
+        renderer: eframe::Renderer::Wgpu,
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1100.0, 800.0])
+            .with_min_inner_size([760.0, 560.0])
             .with_title("DroidForge Plus"),
         ..Default::default()
     };
