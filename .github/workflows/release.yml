@@ -19,10 +19,13 @@ jobs:
         include:
           - os: ubuntu-latest
             binary: droidforge-plus
+            archive: droidforge-plus-linux-x64.tar.gz
           - os: windows-latest
             binary: droidforge-plus.exe
+            archive: droidforge-plus-windows-x64.zip
           - os: macos-latest
             binary: droidforge-plus
+            archive: droidforge-plus-macos.tar.gz
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -31,26 +34,28 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y pkg-config libxkbcommon-dev libwayland-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libasound2-dev
+          sudo apt-get install -y pkg-config libxkbcommon-dev libwayland-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libasound2-dev libxcb-randr0-dev libxcb-shape0-dev libxcb-xfixes0-dev
       - name: Build release binary
         run: cargo build --release
-      - name: Prepare release asset (Unix)
+      - name: Prepare Unix archive
         if: runner.os != 'Windows'
         run: |
           mkdir -p dist
-          cp "target/release/${{ matrix.binary }}" "dist/${{ matrix.binary }}"
-          tar -czf "dist/${{ matrix.binary }}-${{ runner.os }}.tar.gz" -C target/release "${{ matrix.binary }}"
-      - name: Prepare release asset (Windows)
+          cp README.md dist/README.md
+          cp "target/release/${{ matrix.binary }}" dist/
+          tar -czf "dist/${{ matrix.archive }}" -C dist README.md "${{ matrix.binary }}"
+      - name: Prepare Windows archive
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item README.md dist/README.md
           Copy-Item "target/release/${{ matrix.binary }}" dist/
-          Compress-Archive -Path "target/release/${{ matrix.binary }}" -DestinationPath "dist/droidforge-plus-Windows.zip"
+          Compress-Archive -Path dist/README.md,dist/${{ matrix.binary }} -DestinationPath "dist/${{ matrix.archive }}"
       - uses: actions/upload-artifact@v4
         with:
           name: droidforge-plus-${{ matrix.os }}
-          path: dist/*
+          path: dist/${{ matrix.archive }}
           if-no-files-found: error
 
   publish:
