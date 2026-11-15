@@ -56,7 +56,7 @@ jobs:
           AppPublisher=DroidForge Plus
           DefaultDirName={autopf}\DroidForge Plus
           DefaultGroupName=DroidForge Plus
-          OutputDir=dist
+          OutputDir=..\\dist
           OutputBaseFilename=droidforge-plus-windows-x64-setup
           Compression=lzma2
           SolidCompression=yes
