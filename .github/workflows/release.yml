@@ -164,5 +164,5 @@ jobs:
         with:
           files: dist/*
           tag_name: ${{ github.ref_name }}
-          target_commitish: main
+          target_commitish: ${{ github.sha }}
           generate_release_notes: true
