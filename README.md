@@ -32,10 +32,23 @@ DroidForge Plus is a desktop toolkit for Android Platform-Tools, built with Rust
 - Android SDK Platform-Tools (ADB and Fastboot) available in PATH
 - A USB connection with USB debugging enabled, or a supported Fastboot connection
 
-## Download and update
-Download the archive for your operating system from the [Releases](https://github.com/mieson656-cell/Droid-ForgePlus/releases) page. Extract it and run the application.
+## Downloads: portable and installed editions
 
-DroidForge Plus is distributed as a portable application: to update, close it, replace the old executable with the one from the newer release, and launch it again. No uninstall step is required. Keep exported backups in a separate folder; replacing the application does not touch them.
+Every release provides **both portable and installable editions**:
+
+| Platform | Portable edition | Installer |
+|---|---|---|
+| Windows x64 | ZIP archive | Setup EXE (Inno Setup) |
+| Linux x64 | TAR.GZ archive | Debian package (.deb) |
+| macOS x64 | TAR.GZ archive | Installer package (.pkg) |
+
+**Portable:** extract the archive and run the executable. It can be kept in any folder and does not need installation.
+
+**Installed:** run the platform installer. Windows creates a Start Menu shortcut and offers a desktop shortcut; Linux installs the app and command; macOS installs the app bundle into Applications.
+
+### Updating
+
+Download the same edition from the newer release. For portable installs, close the app and replace its files. For installed editions, run the newer installer/package over the existing installation. Do not uninstall the previous version first. Keep personal backups outside the application installation folder; updates do not intentionally remove them.
 
 ## Build from source
 
