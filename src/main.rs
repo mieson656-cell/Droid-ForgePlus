@@ -1,6 +1,13 @@
 mod android;
 
-use eframe::egui;
+use egui;
+use std::sync::Arc;
+use winit::{
+    application::ApplicationHandler,
+    event::WindowEvent,
+    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
+    window::{Window, WindowId},
+};
 
 #[derive(PartialEq)]
 enum Tab {
@@ -530,16 +537,8 @@ impl DroidForgeApp {
     }
 }
 
-impl eframe::App for DroidForgeApp {
-    // eframe 0.29 defaults to a semi-transparent clear color (alpha = 180).
-    // That is useful for overlay applications, but this app must be fully opaque.
-    // Explicitly clearing to alpha=1 prevents the desktop compositor/GPU driver
-    // from treating the entire client area as translucent.
-    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
-        egui::Color32::from_rgb(15, 18, 25).to_normalized_gamma_f32()
-    }
-
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+impl DroidForgeApp {
+    fn update_ui(&mut self, ctx: &egui::Context) {
         ctx.request_repaint_after(std::time::Duration::from_millis(100));
 
         // Единая тёмная тема и удобные интервалы.
@@ -704,25 +703,239 @@ impl eframe::App for DroidForgeApp {
     }
 }
 
-fn main() -> Result<(), eframe::Error> {
-    let options = eframe::NativeOptions {
-        renderer: eframe::Renderer::Wgpu,
-        // Use WGPU instead of Glow/OpenGL to test an alternative graphics backend
-        // on systems affected by legacy NVIDIA OpenGL driver/compositor issues.
-        multisampling: 1,
-        depth_buffer: 0,
-        stencil_buffer: 0,
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size([1100.0, 800.0])
-            .with_min_inner_size([760.0, 560.0])
-            .with_title("DroidForge Plus")
-            .with_transparent(false),
-        ..Default::default()
-    };
+struct NativeWindowApp {
+    window: Option<Arc<Window>>,
+    instance: wgpu::Instance,
+    surface: Option<wgpu::Surface<'static>>,
+    surface_config: Option<wgpu::SurfaceConfiguration>,
+    device: Option<wgpu::Device>,
+    queue: Option<wgpu::Queue>,
+    renderer: Option<egui_wgpu::Renderer>,
+    egui_state: Option<egui_winit::State>,
+    egui_ctx: egui::Context,
+    app: DroidForgeApp,
+}
 
-    eframe::run_native(
-        "DroidForge Plus",
-        options,
-        Box::new(|_cc| Ok(Box::new(DroidForgeApp::default()))),
-    )
+impl Default for NativeWindowApp {
+    fn default() -> Self {
+        Self {
+            window: None,
+            instance: wgpu::Instance::default(),
+            surface: None,
+            surface_config: None,
+            device: None,
+            queue: None,
+            renderer: None,
+            egui_state: None,
+            egui_ctx: egui::Context::default(),
+            app: DroidForgeApp::default(),
+        }
+    }
+}
+
+impl NativeWindowApp {
+    fn initialize_graphics(&mut self, window: Arc<Window>) -> Result<(), String> {
+        let surface = self.instance.create_surface(window.clone())
+            .map_err(|e| format!("Не удалось создать поверхность окна: {e}"))?;
+        let adapter = pollster::block_on(self.instance.request_adapter(
+            &wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::LowPower,
+                compatible_surface: Some(&surface),
+                force_fallback_adapter: false,
+            },
+        )).map_err(|e| format!("Не найден совместимый графический адаптер: {e}"))?;
+
+        let (device, queue) = pollster::block_on(adapter.request_device(
+            &wgpu::DeviceDescriptor {
+                label: Some("DroidForge Plus native WGPU device"),
+                required_features: wgpu::Features::empty(),
+                required_limits: wgpu::Limits::downlevel_defaults(),
+            },
+            None,
+        )).map_err(|e| format!("Не удалось создать графическое устройство: {e}"))?;
+
+        let capabilities = surface.get_capabilities(&adapter);
+        let format = capabilities.formats.iter().copied()
+            .find(|f| *f == wgpu::TextureFormat::Bgra8Unorm || *f == wgpu::TextureFormat::Rgba8Unorm)
+            .or_else(|| capabilities.formats.first().copied())
+            .ok_or_else(|| "Видеодрайвер не предложил подходящий формат поверхности.".to_string())?;
+        let alpha_mode = capabilities.alpha_modes.iter().copied()
+            .find(|mode| *mode == wgpu::CompositeAlphaMode::Opaque)
+            .unwrap_or(wgpu::CompositeAlphaMode::Auto);
+        let size = window.inner_size();
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format,
+            width: size.width.max(1),
+            height: size.height.max(1),
+            present_mode: wgpu::PresentMode::Fifo,
+            alpha_mode,
+            view_formats: vec![],
+            desired_maximum_frame_latency: 2,
+        };
+        surface.configure(&device, &config);
+
+        let renderer = egui_wgpu::Renderer::new(&device, format, None, 1, false);
+        let egui_state = egui_winit::State::new(
+            self.egui_ctx.clone(),
+            egui::ViewportId::ROOT,
+            window.as_ref(),
+            Some(window.scale_factor() as f32),
+            None,
+            Some(device.limits().max_texture_dimension_2d as usize),
+        );
+
+        self.window = Some(window);
+        self.surface = Some(surface);
+        self.surface_config = Some(config);
+        self.device = Some(device);
+        self.queue = Some(queue);
+        self.renderer = Some(renderer);
+        self.egui_state = Some(egui_state);
+        Ok(())
+    }
+
+    fn resize_surface(&mut self, width: u32, height: u32) {
+        if width == 0 || height == 0 { return; }
+        if let (Some(surface), Some(device), Some(config)) =
+            (self.surface.as_ref(), self.device.as_ref(), self.surface_config.as_mut()) {
+            config.width = width;
+            config.height = height;
+            surface.configure(device, config);
+        }
+    }
+
+    fn render_frame(&mut self) {
+        let (Some(window), Some(surface), Some(device), Some(queue), Some(renderer), Some(state), Some(config)) =
+            (self.window.as_ref(), self.surface.as_ref(), self.device.as_ref(), self.queue.as_ref(),
+             self.renderer.as_mut(), self.egui_state.as_mut(), self.surface_config.as_ref()) else {
+            return;
+        };
+
+        let raw_input = state.take_egui_input(window);
+        let output = self.egui_ctx.run(raw_input, |ctx| self.app.update_ui(ctx));
+        state.handle_platform_output(window, output.platform_output);
+
+        let frame = match surface.get_current_texture() {
+            Ok(frame) => frame,
+            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                self.resize_surface(config.width, config.height);
+                return;
+            }
+            Err(wgpu::SurfaceError::Timeout) => return,
+            Err(wgpu::SurfaceError::OutOfMemory) => {
+                eprintln!("WGPU: недостаточно видеопамяти для отображения окна.");
+                return;
+            }
+        };
+        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let pixels_per_point = window.scale_factor() as f32 * self.egui_ctx.zoom_factor();
+        let screen = egui_wgpu::ScreenDescriptor {
+            size_in_pixels: [config.width, config.height],
+            pixels_per_point,
+        };
+        let paint_jobs = self.egui_ctx.tessellate(output.shapes, pixels_per_point);
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("DroidForge Plus UI encoder"),
+        });
+
+        for (id, image_delta) in &output.textures_delta.set {
+            renderer.update_texture(device, queue, *id, image_delta);
+        }
+        let user_cmd_buffers = renderer.update_buffers(device, queue, &mut encoder, &paint_jobs, &screen);
+        {
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("DroidForge Plus opaque UI pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 15.0 / 255.0,
+                            g: 18.0 / 255.0,
+                            b: 25.0 / 255.0,
+                            a: 1.0,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+            renderer.render(&mut pass.forget_lifetime(), &paint_jobs, &screen);
+        }
+        queue.submit(user_cmd_buffers.into_iter().chain(std::iter::once(encoder.finish())));
+        frame.present();
+
+        for id in &output.textures_delta.free {
+            renderer.free_texture(id);
+        }
+        if self.egui_ctx.has_requested_repaint() {
+            window.request_redraw();
+        }
+    }
+}
+
+impl ApplicationHandler for NativeWindowApp {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        if self.window.is_some() { return; }
+        let attributes = Window::default_attributes()
+            .with_title("DroidForge Plus")
+            .with_inner_size(winit::dpi::LogicalSize::new(1100.0, 800.0))
+            .with_min_inner_size(winit::dpi::LogicalSize::new(760.0, 560.0))
+            .with_transparent(false);
+        match event_loop.create_window(attributes) {
+            Ok(window) => {
+                let window = Arc::new(window);
+                if let Err(error) = self.initialize_graphics(window.clone()) {
+                    eprintln!("DroidForge Plus: {error}");
+                    event_loop.exit();
+                    return;
+                }
+                window.request_redraw();
+            }
+            Err(error) => {
+                eprintln!("Не удалось создать нативное окно Windows: {error}");
+                event_loop.exit();
+            }
+        }
+    }
+
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, window_id: WindowId, event: WindowEvent) {
+        let Some(window) = self.window.as_ref() else { return; };
+        if window.id() != window_id { return; }
+
+        if let Some(state) = self.egui_state.as_mut() {
+            let response = state.on_window_event(window, &event);
+            if response.repaint { window.request_redraw(); }
+        }
+
+        match event {
+            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::Resized(size) => self.resize_surface(size.width, size.height),
+            WindowEvent::ScaleFactorChanged { .. } => {
+                let size = window.inner_size();
+                self.resize_surface(size.width, size.height);
+            }
+            WindowEvent::RedrawRequested => self.render_frame(),
+            _ => {}
+        }
+    }
+
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        event_loop.set_control_flow(ControlFlow::WaitUntil(
+            std::time::Instant::now() + std::time::Duration::from_millis(100)
+        ));
+        if let Some(window) = self.window.as_ref() {
+            window.request_redraw();
+        }
+    }
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let event_loop = EventLoop::new()?;
+    let mut app = NativeWindowApp::default();
+    event_loop.run_app(&mut app)?;
+    Ok(())
 }
