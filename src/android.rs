@@ -1,12 +1,34 @@
 use std::{
     fs,
-    path::Path,
+    path::{Path, PathBuf},
     process::{Command, Stdio},
 };
 
+/// Prefer the copy bundled beside the application; fall back to PATH for developer setups.
+fn platform_tool_path(cmd: &str) -> PathBuf {
+    let executable = std::env::current_exe().ok();
+    if let Some(parent) = executable.as_ref().and_then(|p| p.parent()) {
+        let bundled = parent.join("platform-tools").join(if cfg!(windows) {
+            format!("{cmd}.exe")
+        } else {
+            cmd.to_string()
+        });
+        if bundled.is_file() {
+            return bundled;
+        }
+        // macOS .app layout: Contents/MacOS/<app>, resources live in Contents/Resources.
+        let mac_bundle = parent.join("../Resources/platform-tools").join(cmd);
+        if mac_bundle.is_file() {
+            return mac_bundle;
+        }
+    }
+    PathBuf::from(cmd)
+}
+
 /// Run an external Android platform-tools command without invoking a shell.
 pub fn run_command(cmd: &str, args: &[&str]) -> Result<String, String> {
-    let output = Command::new(cmd)
+    let tool = platform_tool_path(cmd);
+    let output = Command::new(&tool)
         .args(args)
         .stdin(Stdio::null())
         .output()
