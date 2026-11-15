@@ -2,7 +2,7 @@ name: Rust CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "fix/native-winit-window-shell"]
   pull_request:
     branches: [main]
 
