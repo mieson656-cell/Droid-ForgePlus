@@ -531,6 +531,14 @@ impl DroidForgeApp {
 }
 
 impl eframe::App for DroidForgeApp {
+    // eframe 0.29 defaults to a semi-transparent clear color (alpha = 180).
+    // That is useful for overlay applications, but this app must be fully opaque.
+    // Explicitly clearing to alpha=1 prevents the desktop compositor/GPU driver
+    // from treating the entire client area as translucent.
+    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
+        egui::Color32::from_rgb(15, 18, 25).to_normalized_gamma_f32()
+    }
+
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.request_repaint_after(std::time::Duration::from_millis(100));
 
@@ -707,7 +715,8 @@ fn main() -> Result<(), eframe::Error> {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1100.0, 800.0])
             .with_min_inner_size([760.0, 560.0])
-            .with_title("DroidForge Plus"),
+            .with_title("DroidForge Plus")
+            .with_transparent(false),
         ..Default::default()
     };
 
