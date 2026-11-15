@@ -3,7 +3,6 @@ name = "droidforge-plus"
 version = "0.2.0"
 edition = "2021"
 description = "A modern desktop toolkit for Android ADB and Fastboot"
-license = "MIT"
 
 [dependencies]
 eframe = "0.29"
