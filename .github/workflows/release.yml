@@ -193,6 +193,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete-asset "${GITHUB_REF_NAME}" droidforge-plus-linux-x64.tar.gz --yes
-          gh release delete-asset "${GITHUB_REF_NAME}" droidforge-plus-macos.tar.gz --yes
-          gh release delete-asset "${GITHUB_REF_NAME}" droidforge-plus-windows-x64.zip --yes
+          assets="$(gh release view "${GITHUB_REF_NAME}" --json assets --jq '.assets[].name')"
+          for old_asset in droidforge-plus-linux-x64.tar.gz droidforge-plus-macos.tar.gz droidforge-plus-windows-x64.zip; do
+            if grep -Fxq "$old_asset" <<< "$assets"; then
+              gh release delete-asset "${GITHUB_REF_NAME}" "$old_asset" --yes
+            fi
+          done
