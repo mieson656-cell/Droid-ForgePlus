@@ -698,7 +698,7 @@ impl eframe::App for DroidForgeApp {
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
-        renderer: eframe::Renderer::Wgpu,
+        renderer: eframe::Renderer::Glow,
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1100.0, 800.0])
             .with_min_inner_size([760.0, 560.0])
