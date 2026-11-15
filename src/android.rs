@@ -1,0 +1,144 @@
+use std::{
+    fs,
+    path::Path,
+    process::{Command, Stdio},
+};
+
+/// Run an external Android platform-tools command without invoking a shell.
+pub fn run_command(cmd: &str, args: &[&str]) -> Result<String, String> {
+    let output = Command::new(cmd)
+        .args(args)
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|e| format!("Не удалось запустить {cmd}: {e}. Проверьте установку Android Platform-Tools и PATH."))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = match (stdout.trim(), stderr.trim()) {
+        ("", "") => String::from("Команда выполнена без вывода."),
+        ("", err) => err.to_owned(),
+        (out, "") => out.to_owned(),
+        (out, err) => format!("{out}\n{err}"),
+    };
+
+    if output.status.success() {
+        Ok(combined)
+    } else {
+        Err(format!("Команда завершилась с кодом {:?}:\n{combined}", output.status.code()))
+    }
+}
+
+/// Parse adb devices and only accept devices in the ready device state.
+pub fn check_adb() -> (bool, String) {
+    match run_command("adb", &["devices", "-l"]) {
+        Ok(output) => {
+            let found = output.lines().any(|line| {
+                let mut fields = line.split_whitespace();
+                matches!((fields.next(), fields.next()), (Some(serial), Some("device")) if serial != "List")
+            });
+            (found, output)
+        }
+        Err(e) => (false, e),
+    }
+}
+
+/// Parse fastboot devices; a non-empty error message is not a connected device.
+pub fn check_fastboot() -> (bool, String) {
+    match run_command("fastboot", &["devices"]) {
+        Ok(output) => {
+            let found = output.lines().any(|line| !line.trim().is_empty());
+            (found, output)
+        }
+        Err(e) => (false, e),
+    }
+}
+
+pub fn install_apk(file_path: &str) -> Result<String, String> {
+    run_command("adb", &["install", "-r", file_path])
+}
+pub fn sideload(file_path: &str) -> Result<String, String> {
+    run_command("adb", &["sideload", file_path])
+}
+pub fn push_file(file_path: &str, dest: &str) -> Result<String, String> {
+    run_command("adb", &["push", file_path, dest])
+}
+pub fn pull_file(remote_path: &str, local_path: &str) -> Result<String, String> {
+    run_command("adb", &["pull", remote_path, local_path])
+}
+pub fn adb_reboot(mode: &str) -> Result<String, String> {
+    if mode.is_empty() { run_command("adb", &["reboot"]) }
+    else { run_command("adb", &["reboot", mode]) }
+}
+
+/// Capture binary PNG output directly; shell redirection does not work with Command.
+pub fn screenshot(output_path: &str) -> Result<String, String> {
+    let output = Command::new("adb")
+        .args(["exec-out", "screencap", "-p"])
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|e| format!("Не удалось запустить adb: {e}"))?;
+
+    if !output.status.success() {
+        return Err(format!("Ошибка создания скриншота: {}", String::from_utf8_lossy(&output.stderr)));
+    }
+    if output.stdout.is_empty() {
+        return Err("ADB вернул пустой файл скриншота.".to_string());
+    }
+    fs::write(output_path, &output.stdout)
+        .map_err(|e| format!("Не удалось сохранить скриншот: {e}"))?;
+    Ok(format!("Скриншот сохранён: {} ({} байт)", output_path, output.stdout.len()))
+}
+
+pub fn logcat(output_path: &str) -> Result<String, String> {
+    let logs = run_command("adb", &["logcat", "-d"])?;
+    fs::write(output_path, &logs)
+        .map_err(|e| format!("Ошибка записи файла: {e}"))?;
+    Ok(format!("Логи сохранены: {} ({} байт)", output_path, logs.len()))
+}
+
+pub fn get_device_info() -> Result<String, String> {
+    let fields = [
+        ("Модель", "ro.product.model"),
+        ("Производитель", "ro.product.manufacturer"),
+        ("Устройство", "ro.product.device"),
+        ("Версия Android", "ro.build.version.release"),
+        ("Уровень API", "ro.build.version.sdk"),
+        ("Архитектура", "ro.product.cpu.abi"),
+        ("Отпечаток сборки", "ro.build.fingerprint"),
+    ];
+    let mut info = String::new();
+    for (label, property) in fields {
+        let value = run_command("adb", &["shell", "getprop", property])
+            .unwrap_or_else(|_| "Недоступно".to_string());
+        info.push_str(&format!("{label}: {}\n", value.trim()));
+    }
+    Ok(info)
+}
+
+pub fn flash_partition(partition: &str, image_path: &str) -> Result<String, String> {
+    if partition.trim().is_empty() { return Err("Не выбран раздел для прошивки.".into()); }
+    if !Path::new(image_path).is_file() { return Err("Файл образа не найден.".into()); }
+    run_command("fastboot", &["flash", partition, image_path])
+}
+pub fn boot_image(image_path: &str) -> Result<String, String> {
+    if !Path::new(image_path).is_file() { return Err("Файл образа не найден.".into()); }
+    run_command("fastboot", &["boot", image_path])
+}
+pub fn unlock_bootloader() -> Result<String, String> {
+    run_command("fastboot", &["flashing", "unlock"])
+}
+pub fn lock_bootloader() -> Result<String, String> {
+    run_command("fastboot", &["flashing", "lock"])
+}
+pub fn erase_partition(partition: &str) -> Result<String, String> {
+    if partition.trim().is_empty() { return Err("Не выбран раздел для очистки.".into()); }
+    run_command("fastboot", &["erase", partition])
+}
+pub fn fastboot_reboot(mode: &str) -> Result<String, String> {
+    if mode.is_empty() { run_command("fastboot", &["reboot"]) }
+    else { run_command("fastboot", &["reboot", mode]) }
+}
+pub fn get_fastboot_var(var: &str) -> Result<String, String> {
+    if var.trim().is_empty() { return Err("Укажите имя переменной Fastboot.".into()); }
+    run_command("fastboot", &["getvar", var])
+}
