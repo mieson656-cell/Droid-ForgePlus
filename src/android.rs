@@ -28,14 +28,28 @@ pub fn run_command(cmd: &str, args: &[&str]) -> Result<String, String> {
     }
 }
 
+
+/// Return true only for an authorized ADB device row.
+fn has_ready_adb_device(output: &str) -> bool {
+    output.lines().any(|line| {
+        let mut fields = line.split_whitespace();
+        matches!((fields.next(), fields.next()), (Some(serial), Some("device")) if serial != "List")
+    })
+}
+
+/// Return true only for a serial followed by Fastboot's device state.
+fn has_fastboot_device(output: &str) -> bool {
+    output.lines().any(|line| {
+        let mut fields = line.split_whitespace();
+        matches!((fields.next(), fields.next()), (Some(serial), Some("fastboot")) if !serial.is_empty())
+    })
+}
+
 /// Parse adb devices and only accept devices in the ready device state.
 pub fn check_adb() -> (bool, String) {
     match run_command("adb", &["devices", "-l"]) {
         Ok(output) => {
-            let found = output.lines().any(|line| {
-                let mut fields = line.split_whitespace();
-                matches!((fields.next(), fields.next()), (Some(serial), Some("device")) if serial != "List")
-            });
+            let found = has_ready_adb_device(&output);
             (found, output)
         }
         Err(e) => (false, e),
@@ -46,7 +60,7 @@ pub fn check_adb() -> (bool, String) {
 pub fn check_fastboot() -> (bool, String) {
     match run_command("fastboot", &["devices"]) {
         Ok(output) => {
-            let found = output.lines().any(|line| !line.trim().is_empty());
+            let found = has_fastboot_device(&output);
             (found, output)
         }
         Err(e) => (false, e),
