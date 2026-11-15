@@ -43,7 +43,7 @@ impl Default for DroidForgeApp {
             current_tab: Tab::Adb,
             adb_connected: false,
             fastboot_connected: false,
-            log_text: String::from("[INFO] Добро пожаловать в DroidForge Plus!\n[INFO] Нажмите 'Обновить статус' для проверки подключения\n"),
+            log_text: String::from("[ИНФО] Добро пожаловать в DroidForge Plus!\n[ИНФО] Нажмите 'Обновить статус' для проверки подключения\n"),
 
             selected_apk: None,
             selected_sideload: None,
@@ -72,7 +72,7 @@ impl DroidForgeApp {
     }
 
     fn check_connection_status(&mut self) {
-        self.add_log("[INFO] Проверка подключения...");
+        self.add_log("[ИНФО] Проверка подключения...");
 
         let (adb, _adb_log) = android::check_adb();
         self.adb_connected = adb;
@@ -108,9 +108,9 @@ impl DroidForgeApp {
                 egui::Color32::from_rgb(100, 100, 100)
             };
 
-            ui.colored_label(adb_color, if self.adb_connected { "● ADB: Подключен" } else { "○ ADB: Отключен" });
+            ui.colored_label(adb_color, if self.adb_connected { "● ADB: Подключено" } else { "○ ADB: Отключено" });
             ui.separator();
-            ui.colored_label(fb_color, if self.fastboot_connected { "● Fastboot: Подключен" } else { "○ Fastboot: Отключен" });
+            ui.colored_label(fb_color, if self.fastboot_connected { "● Загрузчик: Подключён" } else { "○ Загрузчик: Отключён" });
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("🔄 Обновить статус").clicked() {
@@ -130,11 +130,11 @@ impl DroidForgeApp {
                 ui.horizontal(|ui| {
                     if ui.button("Выбрать APK").clicked() {
                         if let Some(path) = rfd::FileDialog::new()
-                            .add_filter("APK files", &["apk"])
+                            .add_filter("Файлы APK", &["apk"])
                             .pick_file()
                         {
                             self.selected_apk = Some(path.display().to_string());
-                            self.add_log(&format!("[INFO] Выбран APK: {}", path.display()));
+                            self.add_log(&format!("[ИНФО] Выбран APK: {}", path.display()));
                         }
                     }
 
@@ -143,8 +143,8 @@ impl DroidForgeApp {
                             if let Some(apk_path) = self.selected_apk.clone() {
                                 self.add_log(&format!("[ADB] Установка APK: {}", apk_path));
                                 match android::install_apk(&apk_path) {
-                                    Ok(log) => self.add_log(&format!("[SUCCESS] {}", log)),
-                                    Err(e) => self.add_log(&format!("[ERROR] {}", e)),
+                                    Ok(log) => self.add_log(&format!("[УСПЕХ] {}", log)),
+                                    Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
                                 }
                             }
                         }
@@ -160,22 +160,22 @@ impl DroidForgeApp {
                 ui.horizontal(|ui| {
                     if ui.button("Выбрать ZIP").clicked() {
                         if let Some(path) = rfd::FileDialog::new()
-                            .add_filter("ZIP files", &["zip"])
+                            .add_filter("ZIP-архивы", &["zip"])
                             .pick_file()
                         {
                             self.selected_sideload = Some(path.display().to_string());
-                            self.add_log(&format!("[INFO] Выбран ZIP: {}", path.display()));
+                            self.add_log(&format!("[ИНФО] Выбран ZIP: {}", path.display()));
                         }
                     }
 
                     ui.add_enabled_ui(self.adb_connected && self.selected_sideload.is_some(), |ui| {
-                        if ui.button("⚡ Sideload (Recovery)").clicked() {
+                        if ui.button("⚡ Установить ZIP через Recovery").clicked() {
                             if let Some(zip_path) = self.selected_sideload.clone() {
                                 self.add_log("⚠ Убедитесь, что устройство в Recovery!");
-                                self.add_log(&format!("[ADB] Sideload: {}", zip_path));
+                                self.add_log(&format!("[ADB] Установка ZIP: {}", zip_path));
                                 match android::sideload(&zip_path) {
-                                    Ok(log) => self.add_log(&format!("[SUCCESS] {}", log)),
-                                    Err(e) => self.add_log(&format!("[ERROR] {}", e)),
+                                    Ok(log) => self.add_log(&format!("[УСПЕХ] {}", log)),
+                                    Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
                                 }
                             }
                         }
@@ -192,17 +192,17 @@ impl DroidForgeApp {
                     if ui.button("Выбрать файл").clicked() {
                         if let Some(path) = rfd::FileDialog::new().pick_file() {
                             self.selected_push_file = Some(path.display().to_string());
-                            self.add_log(&format!("[INFO] Выбран файл: {}", path.display()));
+                            self.add_log(&format!("[ИНФО] Выбран файл: {}", path.display()));
                         }
                     }
 
                     ui.add_enabled_ui(self.adb_connected && self.selected_push_file.is_some(), |ui| {
                         if ui.button("⬆ Передать файл на /sdcard/").clicked() {
                             if let Some(file_path) = &self.selected_push_file.clone() {
-                                self.add_log(&format!("[ADB] Push: {}", file_path));
+                                self.add_log(&format!("[ADB] Передача файла: {}", file_path));
                                 match android::push_file(file_path, "/sdcard/") {
-                                    Ok(log) => self.add_log(&format!("[SUCCESS] {}", log)),
-                                    Err(e) => self.add_log(&format!("[ERROR] {}", e)),
+                                    Ok(log) => self.add_log(&format!("[УСПЕХ] {}", log)),
+                                    Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
                                 }
                             }
                         }
@@ -223,10 +223,10 @@ impl DroidForgeApp {
                         if ui.button("⬇ Забрать файл").clicked() {
                             if let Some(path) = rfd::FileDialog::new().save_file() {
                                 let local_path = path.display().to_string();
-                                self.add_log(&format!("[ADB] Pull: {} -> {}", self.pull_remote_path, local_path));
+                                self.add_log(&format!("[ADB] Получение файла: {} -> {}", self.pull_remote_path, local_path));
                                 match android::pull_file(&self.pull_remote_path, &local_path) {
-                                    Ok(log) => self.add_log(&format!("[SUCCESS] {}", log)),
-                                    Err(e) => self.add_log(&format!("[ERROR] {}", e)),
+                                    Ok(log) => self.add_log(&format!("[УСПЕХ] {}", log)),
+                                    Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
                                 }
                             }
                         }
@@ -248,8 +248,8 @@ impl DroidForgeApp {
                                 let directory = path.display().to_string();
                                 self.add_log(&format!("[ADB] Резервное копирование /sdcard/ -> {directory}"));
                                 match android::backup_shared_storage(&directory) {
-                                    Ok(log) => self.add_log(&format!("[SUCCESS] {log}")),
-                                    Err(e) => self.add_log(&format!("[ERROR] {e}")),
+                                    Ok(log) => self.add_log(&format!("[УСПЕХ] {log}")),
+                                    Err(e) => self.add_log(&format!("[ОШИБКА] {e}")),
                                 }
                             }
                         }
@@ -265,7 +265,7 @@ impl DroidForgeApp {
 
             // Ребут и режимы
             ui.group(|ui| {
-                ui.heading("🔄 Ребут и режимы");
+                ui.heading("🔄 Перезагрузка и режимы");
                 ui.add_space(8.0);
 
                 ui.horizontal(|ui| {
@@ -273,24 +273,24 @@ impl DroidForgeApp {
                         if ui.button("В систему").clicked() {
                             self.add_log("[ADB] Перезагрузка в систему...");
                             match android::adb_reboot("") {
-                                Ok(log) => self.add_log(&format!("[SUCCESS] {}", log)),
-                                Err(e) => self.add_log(&format!("[ERROR] {}", e)),
+                                Ok(log) => self.add_log(&format!("[УСПЕХ] {}", log)),
+                                Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
                             }
                         }
 
                         if ui.button("В Recovery").clicked() {
                             self.add_log("[ADB] Перезагрузка в Recovery...");
                             match android::adb_reboot("recovery") {
-                                Ok(log) => self.add_log(&format!("[SUCCESS] {}", log)),
-                                Err(e) => self.add_log(&format!("[ERROR] {}", e)),
+                                Ok(log) => self.add_log(&format!("[УСПЕХ] {}", log)),
+                                Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
                             }
                         }
 
-                        if ui.button("В Fastboot").clicked() {
+                        if ui.button("В режим загрузчика").clicked() {
                             self.add_log("[ADB] Перезагрузка в Fastboot...");
                             match android::adb_reboot("bootloader") {
-                                Ok(log) => self.add_log(&format!("[SUCCESS] {}", log)),
-                                Err(e) => self.add_log(&format!("[ERROR] {}", e)),
+                                Ok(log) => self.add_log(&format!("[УСПЕХ] {}", log)),
+                                Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
                             }
                         }
                     });
@@ -308,30 +308,30 @@ impl DroidForgeApp {
                     ui.add_enabled_ui(self.adb_connected, |ui| {
                         if ui.button("📸 Скриншот").clicked() {
                             if let Some(path) = rfd::FileDialog::new()
-                                .set_file_name("screenshot.png")
-                                .add_filter("PNG", &["png"])
+                                .set_file_name("снимок_экрана.png")
+                                .add_filter("Изображения PNG", &["png"])
                                 .save_file()
                             {
                                 let output_path = path.display().to_string();
                                 self.add_log("[ADB] Создание скриншота...");
                                 match android::screenshot(&output_path) {
-                                    Ok(log) => self.add_log(&format!("[SUCCESS] Сохранено в {}\n{}", output_path, log)),
-                                    Err(e) => self.add_log(&format!("[ERROR] {}", e)),
+                                    Ok(log) => self.add_log(&format!("[УСПЕХ] Сохранено в {}\n{}", output_path, log)),
+                                    Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
                                 }
                             }
                         }
 
-                        if ui.button("📋 Логи (Logcat)").clicked() {
+                        if ui.button("📋 Журнал устройства").clicked() {
                             if let Some(path) = rfd::FileDialog::new()
-                                .set_file_name("logcat.txt")
-                                .add_filter("TXT", &["txt"])
+                                .set_file_name("журнал_устройства.txt")
+                                .add_filter("Текстовые файлы", &["txt"])
                                 .save_file()
                             {
                                 let output_path = path.display().to_string();
                                 self.add_log("[ADB] Сбор логов...");
                                 match android::logcat(&output_path) {
-                                    Ok(log) => self.add_log(&format!("[SUCCESS] {}", log)),
-                                    Err(e) => self.add_log(&format!("[ERROR] {}", e)),
+                                    Ok(log) => self.add_log(&format!("[УСПЕХ] {}", log)),
+                                    Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
                                 }
                             }
                         }
@@ -339,12 +339,12 @@ impl DroidForgeApp {
                         if ui.button("ℹ Инфо о телефоне").clicked() {
                             self.add_log("[ADB] Получение информации...");
                             match android::get_device_info() {
-                                Ok(info) => self.add_log(&format!("[INFO]\n{}", info)),
-                                Err(e) => self.add_log(&format!("[ERROR] {}", e)),
+                                Ok(info) => self.add_log(&format!("[ИНФО]\n{}", info)),
+                                Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
                             }
                         }
-                        if ui.button("Версии Platform-Tools").clicked() {
-                            self.add_log(&format!("[TOOLS]\n{}", android::get_platform_tools_versions()));
+                        if ui.button("Версии инструментов Android").clicked() {
+                            self.add_log(&format!("[ИНСТРУМЕНТЫ]\n{}", android::get_platform_tools_versions()));
                         }
                     });
                 });
@@ -379,11 +379,11 @@ impl DroidForgeApp {
                 ui.horizontal(|ui| {
                     if ui.button("📁 Выбрать .img").clicked() {
                         if let Some(path) = rfd::FileDialog::new()
-                            .add_filter("Image files", &["img"])
+                            .add_filter("Файлы образов", &["img"])
                             .pick_file()
                         {
                             self.selected_image = Some(path.display().to_string());
-                            self.add_log(&format!("[INFO] Выбран образ: {}", path.display()));
+                            self.add_log(&format!("[ИНФО] Выбран образ: {}", path.display()));
                         }
                     }
 
@@ -409,10 +409,10 @@ impl DroidForgeApp {
 
                         if ui.button("🚀 Загрузиться с образа").clicked() {
                             if let Some(img_path) = self.selected_image.clone() {
-                                self.add_log(&format!("[FASTBOOT] Boot (без прошивки): {}", img_path));
+                                self.add_log(&format!("[FASTBOOT] Запуск образа без прошивки: {}", img_path));
                                 match android::boot_image(&img_path) {
-                                    Ok(log) => self.add_log(&format!("[SUCCESS] {}", log)),
-                                    Err(e) => self.add_log(&format!("[ERROR] {}", e)),
+                                    Ok(log) => self.add_log(&format!("[УСПЕХ] {}", log)),
+                                    Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
                                 }
                             }
                         }
@@ -469,7 +469,7 @@ impl DroidForgeApp {
 
             // Ребут
             ui.group(|ui| {
-                ui.heading("🔄 Ребут");
+                ui.heading("🔄 Перезагрузка");
                 ui.add_space(8.0);
 
                 ui.horizontal(|ui| {
@@ -477,24 +477,24 @@ impl DroidForgeApp {
                         if ui.button("Перезагрузить").clicked() {
                             self.add_log("[FASTBOOT] Перезагрузка...");
                             match android::fastboot_reboot("") {
-                                Ok(log) => self.add_log(&format!("[SUCCESS] {}", log)),
-                                Err(e) => self.add_log(&format!("[ERROR] {}", e)),
+                                Ok(log) => self.add_log(&format!("[УСПЕХ] {}", log)),
+                                Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
                             }
                         }
 
                         if ui.button("В Recovery").clicked() {
                             self.add_log("[FASTBOOT] Перезагрузка в Recovery...");
                             match android::fastboot_reboot("recovery") {
-                                Ok(log) => self.add_log(&format!("[SUCCESS] {}", log)),
-                                Err(e) => self.add_log(&format!("[ERROR] {}", e)),
+                                Ok(log) => self.add_log(&format!("[УСПЕХ] {}", log)),
+                                Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
                             }
                         }
 
-                        if ui.button("В Bootloader").clicked() {
+                        if ui.button("В загрузчик").clicked() {
                             self.add_log("[FASTBOOT] Перезагрузка в Bootloader...");
                             match android::fastboot_reboot("bootloader") {
-                                Ok(log) => self.add_log(&format!("[SUCCESS] {}", log)),
-                                Err(e) => self.add_log(&format!("[ERROR] {}", e)),
+                                Ok(log) => self.add_log(&format!("[УСПЕХ] {}", log)),
+                                Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
                             }
                         }
                     });
@@ -513,11 +513,11 @@ impl DroidForgeApp {
                     ui.text_edit_singleline(&mut self.fastboot_var);
 
                     ui.add_enabled_ui(self.fastboot_connected, |ui| {
-                        if ui.button("📋 getvar").clicked() {
+                        if ui.button("📋 Получить переменную").clicked() {
                             self.add_log(&format!("[FASTBOOT] getvar {}...", self.fastboot_var));
                             match android::get_fastboot_var(&self.fastboot_var) {
-                                Ok(log) => self.add_log(&format!("[INFO] {}", log)),
-                                Err(e) => self.add_log(&format!("[ERROR] {}", e)),
+                                Ok(log) => self.add_log(&format!("[ИНФО] {}", log)),
+                                Err(e) => self.add_log(&format!("[ОШИБКА] {}", e)),
                             }
                         }
                     });
@@ -560,7 +560,7 @@ impl eframe::App for DroidForgeApp {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button("Очистить").clicked() {
                         self.log_text.clear();
-                        self.add_log("[INFO] Журнал очищен.");
+                        self.add_log("[ИНФО] Журнал очищен.");
                     }
                 });
             });
@@ -584,7 +584,7 @@ impl eframe::App for DroidForgeApp {
             ui.add_space(10.0);
             ui.horizontal(|ui| {
                 ui.heading(format!("DroidForge Plus v{}", env!("CARGO_PKG_VERSION")));
-                ui.label(egui::RichText::new("ANDROID DEVICE TOOLKIT").small().color(egui::Color32::from_rgb(90, 190, 220)));
+                ui.label(egui::RichText::new("ИНСТРУМЕНТЫ ДЛЯ ANDROID").small().color(egui::Color32::from_rgb(90, 190, 220)));
             });
             ui.label(
                 egui::RichText::new("ADB, Fastboot и диагностика устройства в одном окне")
@@ -612,7 +612,7 @@ impl eframe::App for DroidForgeApp {
             let mut open = true;
             let mut confirm = false;
             let mut cancel = false;
-            egui::Window::new("Подтверждение опасной операции")
+            egui::Window::new("Подтверждение важного действия")
                 .collapsible(false)
                 .resizable(false)
                 .open(&mut open)
@@ -653,42 +653,42 @@ impl eframe::App for DroidForgeApp {
                     PendingAction::Flash { partition, image } => {
                         self.add_log(&format!("[FASTBOOT] Прошивка {partition} <- {image}"));
                         match android::flash_partition(&partition, &image) {
-                            Ok(log) => self.add_log(&format!("[SUCCESS] {log}")),
-                            Err(e) => self.add_log(&format!("[ERROR] {e}")),
+                            Ok(log) => self.add_log(&format!("[УСПЕХ] {log}")),
+                            Err(e) => self.add_log(&format!("[ОШИБКА] {e}")),
                         }
                     }
                     PendingAction::Erase { partition } => {
                         self.add_log(&format!("[FASTBOOT] Стирание раздела {partition}"));
                         match android::erase_partition(&partition) {
-                            Ok(log) => self.add_log(&format!("[SUCCESS] {log}")),
-                            Err(e) => self.add_log(&format!("[ERROR] {e}")),
+                            Ok(log) => self.add_log(&format!("[УСПЕХ] {log}")),
+                            Err(e) => self.add_log(&format!("[ОШИБКА] {e}")),
                         }
                     }
                     PendingAction::UnlockBootloader => {
                         self.add_log("[FASTBOOT] Разблокировка загрузчика...");
                         match android::unlock_bootloader() {
-                            Ok(log) => self.add_log(&format!("[SUCCESS] {log}")),
-                            Err(e) => self.add_log(&format!("[ERROR] {e}")),
+                            Ok(log) => self.add_log(&format!("[УСПЕХ] {log}")),
+                            Err(e) => self.add_log(&format!("[ОШИБКА] {e}")),
                         }
                     }
                     PendingAction::LockBootloader => {
                         self.add_log("[FASTBOOT] Блокировка загрузчика...");
                         match android::lock_bootloader() {
-                            Ok(log) => self.add_log(&format!("[SUCCESS] {log}")),
-                            Err(e) => self.add_log(&format!("[ERROR] {e}")),
+                            Ok(log) => self.add_log(&format!("[УСПЕХ] {log}")),
+                            Err(e) => self.add_log(&format!("[ОШИБКА] {e}")),
                         }
                     }
                     PendingAction::RestoreBackup { directory } => {
                         self.add_log(&format!("[ADB] Восстановление из {directory}"));
                         match android::restore_shared_storage(&directory) {
-                            Ok(log) => self.add_log(&format!("[SUCCESS] {log}")),
-                            Err(e) => self.add_log(&format!("[ERROR] {e}")),
+                            Ok(log) => self.add_log(&format!("[УСПЕХ] {log}")),
+                            Err(e) => self.add_log(&format!("[ОШИБКА] {e}")),
                         }
                     }
                 }
             } else if cancel || !open {
                 self.pending_action = None;
-                self.add_log("[INFO] Опасная операция отменена.");
+                self.add_log("[ИНФО] Опасная операция отменена.");
             }
         }
     }
