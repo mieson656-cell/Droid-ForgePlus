@@ -699,6 +699,11 @@ impl eframe::App for DroidForgeApp {
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Glow,
+        // Request a single-sample framebuffer explicitly. This avoids driver-specific
+        // pixel-format selection problems seen with older NVIDIA OpenGL drivers.
+        multisampling: 1,
+        depth_buffer: 0,
+        stencil_buffer: 0,
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1100.0, 800.0])
             .with_min_inner_size([760.0, 560.0])
